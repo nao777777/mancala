@@ -43,7 +43,7 @@ console.log('docs/index.html', page.length, 'bytes');
 // Androidなどでホーム画面にインストールするためのマニフェスト・アイコン・Service Worker
 for (const n of [192, 512]) fs.copyFileSync(path.join(__dirname, 'assets', `icon-${n}.png`), path.join(__dirname, 'docs', `icon-${n}.png`));
 const manifest = {
-  name: 'ガラス玉マンカラ',
+  name: 'マンカラ',
   short_name: 'マンカラ',
   description: '木のボードとガラス玉で遊ぶマンカラ（カラハ式）',
   lang: 'ja',

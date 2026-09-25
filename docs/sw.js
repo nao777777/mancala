@@ -1,5 +1,5 @@
 // オフラインでも遊べるようにする。ページは通信優先（更新をすぐ反映）、失敗したらキャッシュ。
-const CACHE = 'mancala-00f54531b6';
+const CACHE = 'mancala-88b77c9312';
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));
