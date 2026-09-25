@@ -143,7 +143,8 @@ button { font: inherit; color: inherit; }
 @media (max-width: 520px) { .menu-grid { grid-template-columns: 1fr; } .menu-card { padding: 22px 16px; } }
 
 /* ---------- ゲーム画面 ---------- */
-#game { display: flex; flex-direction: column; position: relative; overflow: hidden; }
+#game { display: flex; flex-direction: column; position: relative; overflow: hidden;
+  padding-inline: env(safe-area-inset-left, 0px) env(safe-area-inset-right, 0px); }
 .topbar {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   padding: 10px 16px; background: rgba(28,14,4,.55); color: var(--cream);
@@ -360,7 +361,9 @@ button { font: inherit; color: inherit; }
 }
 @media (max-width: 640px) {
   .hint { display: none; }
-  .topbar { flex-wrap: wrap; padding: 8px 16px; }
+  .topbar { flex-wrap: wrap; padding: 8px 12px; gap: 6px 8px; }
+  .topbar .chip { padding: 5px 10px; font-size: 12px; }
+  .toggles { gap: 6px; }
   .status { order: 3; flex-basis: 100%; font-size: 14px; }
 }
 
@@ -404,6 +407,46 @@ button { font: inherit; color: inherit; }
 .diagram figcaption { font-size: 13px; color: var(--ink-soft); }
 .rules-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 @media (max-width: 520px) { .rules { padding: 18px 16px 22px; } }
+
+.rotate-hint { display: none; }
+@media (orientation: portrait) and (max-width: 640px) {
+  .rotate-hint {
+    display: block; position: absolute; right: 16px; bottom: 18px; margin: 0; max-width: calc(100% - 110px);
+    padding: 5px 12px; border-radius: 999px; background: rgba(20,8,0,.6);
+    color: rgba(255,240,215,.92); font-size: 12px; font-weight: 700; text-align: center;
+  }
+  #game:has(#tut:not([hidden])) .rotate-hint { display: none; }
+}
+
+/* スマホ横向き：ボードを画面いっぱいに */
+@media (orientation: landscape) and (max-height: 540px) {
+  #game { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto minmax(0, 1fr); }
+  .topbar { grid-column: 1 / -1; padding: 4px 12px; gap: 8px; flex-wrap: nowrap; }
+  .topbar .chip { padding: 4px 10px; font-size: 12px; }
+  .status { order: 0; flex-basis: auto; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tablearea { grid-column: 1; grid-row: 2; overflow: hidden; }
+  .stage { width: clamp(240px, min(calc(100cqw - 124px), calc((100cqh - 18px) * 1.7857)), 1180px); }
+  .rug { top: -5%; bottom: -6%; left: -4%; right: -4%; }
+  .avatar { width: 44px; box-shadow: 0 0 0 2px #fff, 0 3px 8px rgba(0,0,0,.45); }
+  .seat.active .avatar { box-shadow: 0 0 0 2px #fff, 0 0 0 5px var(--gold), 0 0 14px 4px rgba(255,210,80,.6); }
+  .seat-name { font-size: 11px; padding: 1px 7px; }
+  .seat-me { left: 8px; bottom: 8px; }
+  .seat-opp { right: 8px; top: 8px; }
+  .seat.thinking .seat-name::after { content: " …"; }
+  .hint { display: none; }
+  .tut {
+    grid-column: 2; grid-row: 2; width: clamp(210px, 30vw, 300px); margin: 8px 8px 8px 0; padding: 12px 14px;
+    flex-direction: column; flex-wrap: nowrap; align-items: stretch; justify-content: space-between; gap: 10px;
+    overflow-y: auto;
+  }
+  .tut-text { flex: 0 0 auto; }
+  .tut h2 { font-size: 16px; }
+  .tut p { font-size: 13px; line-height: 1.6; }
+  .tut-actions .btn { padding: 8px 12px; font-size: 14px; flex: 1; }
+  .modal-card { padding: 16px 20px; gap: 8px; }
+  .modal-card h2 { font-size: 28px; }
+  .scoreline .num { font-size: 34px; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .hand svg, .guide, .pit.tut-target { animation: none; }
@@ -463,6 +506,7 @@ button { font: inherit; color: inherit; }
       <div class="toggles">
         <button class="chip" id="btn-guide" type="button" aria-pressed="true">ガイド</button>
         <button class="chip" id="btn-sound" type="button" aria-pressed="true">音</button>
+        <button class="chip" id="btn-full" type="button" hidden>全画面</button>
       </div>
     </header>
 
@@ -483,6 +527,7 @@ button { font: inherit; color: inherit; }
         <div class="avatar" id="av-0"></div>
         <div class="seat-name" id="name-0">あなた</div>
       </div>
+      <p class="rotate-hint" aria-hidden="true">スマホを横向きにすると大きく遊べます</p>
       <p class="hint" id="hint">穴を選んでクリック／タップで配る　·　←→ と Enter でも操作できます</p>
     </div>
 
@@ -1758,6 +1803,23 @@ button { font: inherit; color: inherit; }
     settings.guide = !settings.guide; saveSettings(); syncToggles();
     if (!settings.guide) clearGuide(); else if (G.sel != null && canPlay(G.sel)) showGuideFor(G.sel);
   });
+  // 全画面（対応ブラウザのみ）。全画面にしたら横向きに固定を試みる
+  const fullBtn = $('#btn-full');
+  const root = document.documentElement;
+  const canFull = !!(document.fullscreenEnabled && root.requestFullscreen);
+  fullBtn.hidden = !canFull;
+  function syncFull() { fullBtn.textContent = document.fullscreenElement ? '全画面を終了' : '全画面'; }
+  fullBtn.addEventListener('click', async () => {
+    try {
+      if (document.fullscreenElement) { await document.exitFullscreen(); return; }
+      await root.requestFullscreen({ navigationUI: 'hide' });
+      if (screen.orientation && screen.orientation.lock && matchMedia('(pointer: coarse)').matches) {
+        await screen.orientation.lock('landscape').catch(() => {});
+      }
+    } catch (e) { /* 全画面にできない環境では何もしない */ }
+  });
+  document.addEventListener('fullscreenchange', syncFull);
+  syncFull();
   soundBtn.addEventListener('click', () => { settings.sound = !settings.sound; saveSettings(); syncToggles(); sfx.unlock(); });
 
   function syncMenu() {

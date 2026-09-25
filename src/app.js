@@ -882,6 +882,23 @@
     settings.guide = !settings.guide; saveSettings(); syncToggles();
     if (!settings.guide) clearGuide(); else if (G.sel != null && canPlay(G.sel)) showGuideFor(G.sel);
   });
+  // 全画面（対応ブラウザのみ）。全画面にしたら横向きに固定を試みる
+  const fullBtn = $('#btn-full');
+  const root = document.documentElement;
+  const canFull = !!(document.fullscreenEnabled && root.requestFullscreen);
+  fullBtn.hidden = !canFull;
+  function syncFull() { fullBtn.textContent = document.fullscreenElement ? '全画面を終了' : '全画面'; }
+  fullBtn.addEventListener('click', async () => {
+    try {
+      if (document.fullscreenElement) { await document.exitFullscreen(); return; }
+      await root.requestFullscreen({ navigationUI: 'hide' });
+      if (screen.orientation && screen.orientation.lock && matchMedia('(pointer: coarse)').matches) {
+        await screen.orientation.lock('landscape').catch(() => {});
+      }
+    } catch (e) { /* 全画面にできない環境では何もしない */ }
+  });
+  document.addEventListener('fullscreenchange', syncFull);
+  syncFull();
   soundBtn.addEventListener('click', () => { settings.sound = !settings.sound; saveSettings(); syncToggles(); sfx.unlock(); });
 
   function syncMenu() {
