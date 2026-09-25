@@ -1,0 +1,10 @@
+{
+  "name": "glass-mancala",
+  "version": "1.0.0",
+  "private": true,
+  "description": "木のボードとガラス玉で遊ぶマンカラ（カラハ式）",
+  "scripts": {
+    "build": "node build.js",
+    "test": "node --test test/*.test.js"
+  }
+}

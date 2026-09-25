@@ -1,0 +1,203 @@
+<title>ガラス玉マンカラ</title>
+<link rel="icon" type="image/png" sizes="64x64" href="ICON64">
+<link rel="apple-touch-icon" sizes="180x180" href="ICON180">
+<meta name="apple-mobile-web-app-title" content="マンカラ">
+<meta name="description" content="木のボードとガラス玉で遊ぶマンカラ（カラハ式）。CPU対戦・2人対戦・チュートリアル付き。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Maru+Gothic:wght@500;700;900&display=swap">
+<style>
+/*STYLE*/
+</style>
+
+<div id="app">
+  <!-- ===== メニュー ===== -->
+  <section id="menu" class="screen scene">
+    <div class="menu-card plank">
+      <div class="menu-head">
+        <div class="menu-marbles" aria-hidden="true">
+          <i style="--c:255,110,180;--d:170,30,100"></i><i style="--c:170,110,235;--d:90,40,160"></i><i style="--c:90,205,115;--d:25,120,55"></i><i style="--c:80,150,240;--d:25,75,170"></i><i style="--c:255,145,55;--d:190,70,10"></i><i style="--c:250,212,60;--d:180,130,10"></i>
+        </div>
+        <h1>マンカラ</h1>
+        <p class="lede">石をまいて、ゴールをめざす。世界でいちばん古い遊びのひとつです。</p>
+      </div>
+
+      <div class="menu-block">
+        <h2>CPUと対戦</h2>
+        <div class="opt-row">
+          <span class="opt-label" id="lbl-level">つよさ</span>
+          <div class="seg" role="radiogroup" aria-labelledby="lbl-level">
+            <input type="radio" name="level" id="lv-easy" value="easy"><label for="lv-easy">やさしい</label>
+            <input type="radio" name="level" id="lv-normal" value="normal" checked><label for="lv-normal">ふつう</label>
+            <input type="radio" name="level" id="lv-hard" value="hard"><label for="lv-hard">むずかしい</label>
+          </div>
+        </div>
+        <div class="opt-row">
+          <span class="opt-label" id="lbl-order">手番</span>
+          <div class="seg" role="radiogroup" aria-labelledby="lbl-order">
+            <input type="radio" name="order" id="od-first" value="first" checked><label for="od-first">先攻</label>
+            <input type="radio" name="order" id="od-second" value="second"><label for="od-second">後攻</label>
+            <input type="radio" name="order" id="od-random" value="random"><label for="od-random">ランダム</label>
+          </div>
+        </div>
+        <button class="btn btn-main" id="btn-cpu" type="button">CPUと対戦をはじめる</button>
+      </div>
+
+      <div class="menu-grid">
+        <button class="btn" id="btn-pvp" type="button"><b>ふたりで対戦</b><small>1台の端末で交代しながら</small></button>
+        <button class="btn" id="btn-tut" type="button"><b>チュートリアル</b><small>6ステップで遊び方を体験</small></button>
+        <button class="btn" id="btn-rules" type="button"><b>ルール説明</b><small>配り方・もう一回・横取り</small></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ゲーム ===== -->
+  <section id="game" class="screen" hidden>
+    <header class="topbar">
+      <button class="chip" id="btn-back" type="button">← メニュー</button>
+      <p class="status" id="status" aria-live="polite">あなたの番</p>
+      <div class="toggles">
+        <button class="chip" id="btn-guide" type="button" aria-pressed="true">ガイド</button>
+        <button class="chip" id="btn-sound" type="button" aria-pressed="true">音</button>
+      </div>
+    </header>
+
+    <div class="tablearea">
+      <div class="stage" id="stage">
+        <div class="tilt">
+          <div class="rug" id="rug"></div>
+          <div class="board" id="board"></div>
+        </div>
+        <div class="banner" id="banner" aria-live="assertive"></div>
+      </div>
+
+      <div class="seat seat-opp" id="seat-1">
+        <div class="avatar" id="av-1"></div>
+        <div class="seat-name" id="name-1">CPU</div>
+      </div>
+      <div class="seat seat-me" id="seat-0">
+        <div class="avatar" id="av-0"></div>
+        <div class="seat-name" id="name-0">あなた</div>
+      </div>
+      <p class="hint" id="hint">穴を選んでクリック／タップで配る　·　←→ と Enter でも操作できます</p>
+    </div>
+
+    <div class="tut plank" id="tut" hidden>
+      <div class="tut-text">
+        <p class="tut-step" id="tut-step">1 / 6</p>
+        <h2 id="tut-title">ボードの紹介</h2>
+        <p id="tut-body"></p>
+        <p id="tut-after" class="tut-after" hidden></p>
+      </div>
+      <div class="tut-actions">
+        <button class="btn btn-ghost" id="tut-retry" type="button">やり直す</button>
+        <button class="btn btn-main" id="tut-next" type="button">次へ</button>
+      </div>
+    </div>
+
+    <div class="modal" id="result" hidden>
+      <div class="modal-card plank" role="dialog" aria-modal="true" aria-labelledby="result-title">
+        <p class="result-kicker" id="result-kicker">ゲーム終了</p>
+        <h2 id="result-title">あなたの勝ち！</h2>
+        <div class="scoreline" id="scoreline"></div>
+        <div class="modal-actions" id="result-actions">
+          <button class="btn btn-main" id="btn-again" type="button">もう一度</button>
+          <button class="btn" id="btn-tomenu" type="button">メニューへ</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ルール説明 ===== -->
+  <section id="rules" class="screen scene" hidden>
+    <article class="rules plank">
+      <header class="rules-head">
+        <button class="chip chip-dark" id="rules-back" type="button">← メニュー</button>
+        <h1>ルール説明</h1>
+        <p class="lede">このゲームは「カラハ」と呼ばれる、いちばん広く遊ばれているマンカラのルールです。</p>
+      </header>
+
+      <section>
+        <h2>準備</h2>
+        <p>ボードには穴が12個（自分の陣地6つ、相手の陣地6つ）と、両はしに細長いゴールが2つあります。手前の6つがあなたの陣地、右はしがあなたのゴールです。はじめに各穴へ石を4個ずつ、合計48個入れます。</p>
+        <figure class="diagram">
+          <svg viewBox="0 0 520 220" role="img" aria-labelledby="dg-t">
+            <title id="dg-t">石は反時計回りに進む。手前は右へ、奥は左へ</title>
+            <defs>
+              <marker id="ah" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#2b5aa8"/></marker>
+            </defs>
+            <rect x="10" y="20" width="500" height="180" rx="18" fill="#e4bd82" stroke="#b77630" stroke-width="3"/>
+            <rect x="24" y="44" width="46" height="132" rx="23" fill="#c9924f"/>
+            <rect x="450" y="44" width="46" height="132" rx="23" fill="#c9924f"/>
+            <g fill="#cf9a58">
+              <rect x="92" y="44" width="42" height="58" rx="21"/><rect x="152" y="44" width="42" height="58" rx="21"/><rect x="212" y="44" width="42" height="58" rx="21"/><rect x="272" y="44" width="42" height="58" rx="21"/><rect x="332" y="44" width="42" height="58" rx="21"/><rect x="392" y="44" width="42" height="58" rx="21"/>
+              <rect x="92" y="118" width="42" height="58" rx="21"/><rect x="152" y="118" width="42" height="58" rx="21"/><rect x="212" y="118" width="42" height="58" rx="21"/><rect x="272" y="118" width="42" height="58" rx="21"/><rect x="332" y="118" width="42" height="58" rx="21"/><rect x="392" y="118" width="42" height="58" rx="21"/>
+            </g>
+            <path d="M110 190 H420" stroke="#2b5aa8" stroke-width="4" fill="none" marker-end="url(#ah)"/>
+            <path d="M488 150 V70" stroke="#2b5aa8" stroke-width="4" fill="none" marker-end="url(#ah)"/>
+            <path d="M420 30 H110" stroke="#2b5aa8" stroke-width="4" fill="none" marker-end="url(#ah)"/>
+            <path d="M32 70 V150" stroke="#2b5aa8" stroke-width="4" fill="none" stroke-dasharray="6 6"/>
+            <text x="473" y="116" font-size="13" fill="#3b2410" font-weight="700" text-anchor="middle" transform="rotate(90 473 116)">あなたのゴール</text>
+            <text x="47" y="116" font-size="13" fill="#3b2410" font-weight="700" text-anchor="middle" transform="rotate(-90 47 116)">相手のゴール</text>
+            <text x="263" y="152" font-size="14" fill="#3b2410" font-weight="700" text-anchor="middle">あなたの陣地</text>
+            <text x="263" y="78" font-size="14" fill="#3b2410" font-weight="700" text-anchor="middle">相手の陣地</text>
+          </svg>
+          <figcaption>石は反時計回りに進みます。相手のゴール（点線）は飛ばします。</figcaption>
+        </figure>
+      </section>
+
+      <section>
+        <h2>配り方</h2>
+        <p>自分の番になったら、自分の陣地の穴をひとつ選びます。中の石を全部取り、右どなりの穴から反時計回りに1個ずつ入れていきます。自分のゴールにも入れますが、相手のゴールには入れずに飛ばします。</p>
+      </section>
+
+      <section>
+        <h2>もう一回</h2>
+        <p>最後の1個がちょうど自分のゴールに入ったら、続けてもう1回遊べます。何回でも続けられるので、うまくつなげると一気に差がつきます。</p>
+      </section>
+
+      <section>
+        <h2>横取り</h2>
+        <p>最後の1個が自分の陣地の空っぽの穴に入り、その向かいの穴に相手の石があれば、その1個と向かいの石をまとめて自分のゴールに入れます。向かいが空っぽなら横取りはできません。</p>
+      </section>
+
+      <section>
+        <h2>終わりと勝ち負け</h2>
+        <p>どちらかの陣地の6つの穴がすべて空になったら、ゲーム終了です。残っている石は、それぞれの陣地の持ち主のゴールに入ります。ゴールの石が多い方の勝ち。同じ数なら引き分けです。</p>
+      </section>
+
+      <section>
+        <h2>勝つためのコツ</h2>
+        <ul>
+          <li>ゴールまでの距離と同じ数の石が入った穴を探しましょう。右はしの穴に1個、その左に2個…なら「もう一回」になります。</li>
+          <li>空っぽの穴は横取りのチャンスです。相手の番の前に、自分の空き穴の向かいに石がたまっていないか確かめましょう。</li>
+          <li>終盤は自分の陣地に石を残しておくと、終了時にそのまま自分の点になります。</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>操作</h2>
+        <ul>
+          <li>穴にカーソルを合わせると手袋が移動し、最後の1個が入る場所が光ります（ガイド。上のボタンでオン／オフ）。</li>
+          <li>クリックまたはタップで、その穴の石を配ります。</li>
+          <li>キーボードでは ← → で穴を選び、Enter で配ります。</li>
+        </ul>
+      </section>
+
+      <div class="rules-actions">
+        <button class="btn btn-main" id="rules-tut" type="button">チュートリアルで試す</button>
+        <button class="btn" id="rules-menu" type="button">メニューへ</button>
+      </div>
+    </article>
+  </section>
+</div>
+
+<script>
+/*ENGINE*/
+</script>
+<script>
+/*AI*/
+</script>
+<script>
+/*APP*/
+</script>
