@@ -2,32 +2,54 @@
   'use strict';
   const E = window.MancalaEngine;
   const AI = window.MancalaAI;
+  const PZ = window.MancalaPuzzles;
   const $ = (s) => document.querySelector(s);
   const REDUCED = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   /* ================= 設定の保存 ================= */
-  const settings = { level: 'normal', order: 'first', guide: true, sound: true };
-  try { Object.assign(settings, JSON.parse(localStorage.getItem('mancala-settings') || '{}')); } catch (e) { /* 使えない環境 */ }
-  function saveSettings() { try { localStorage.setItem('mancala-settings', JSON.stringify(settings)); } catch (e) { /* 無視 */ } }
+  const settings = {
+    level: 'normal', order: 'first', guide: true, sound: true, speed: 'normal', tap: 'double',
+    seeds: 4, capture: true, skinStone: 'glass', skinBoard: 'pine', skinRug: 'red',
+  };
+  const store = {
+    get(key, fallback) { try { const v = localStorage.getItem(key); return v == null ? fallback : JSON.parse(v); } catch (e) { return fallback; } },
+    set(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) { /* 保存できない環境 */ } },
+    del(key) { try { localStorage.removeItem(key); } catch (e) { /* 無視 */ } },
+  };
+  Object.assign(settings, store.get('mancala-settings', {}));
+  if (![3, 4, 5, 6].includes(settings.seeds)) settings.seeds = 4;
+  function saveSettings() { store.set('mancala-settings', settings); }
+  const rulesNow = () => ({ seeds: settings.seeds, capture: settings.capture });
+  function rulesText(r) {
+    return `各穴${r.seeds}個・横取り${r.capture ? 'あり' : 'なし'}`;
+  }
 
   /* ================= テクスチャ（SVGをdata URIで生成） ================= */
   const svgURI = (s) => 'url("data:image/svg+xml,' + encodeURIComponent(s) + '")';
   function grain(seed, w, h, fx, fy, alpha) {
     return svgURI(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><filter id="g" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="${fx} ${fy}" numOctaves="4" seed="${seed}"/><feColorMatrix values="0 0 0 0 0.42  0 0 0 0 0.22  0 0 0 0 0.05  ${alpha} 0 0 0 -0.62"/></filter><rect width="${w}" height="${h}" filter="url(#g)"/></svg>`);
   }
-  const rugField = svgURI(`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" fill="#a3262b"/><path d="M32 4 L60 32 L32 60 L4 32Z" fill="none" stroke="#6c1318" stroke-width="5"/><path d="M32 16 L48 32 L32 48 L16 32Z" fill="#d8b06a"/><path d="M32 22 L42 32 L32 42 L22 32Z" fill="#8f1f24"/><path d="M32 27 L37 32 L32 37 L27 32Z" fill="#26356b"/><path d="M0 0 L7 0 L0 7Z M64 0 L57 0 L64 7Z M0 64 L7 64 L0 57Z M64 64 L57 64 L64 57Z" fill="#e8d3a2"/><rect x="30" y="0" width="4" height="3" fill="#e8d3a2"/><rect x="30" y="61" width="4" height="3" fill="#e8d3a2"/><rect x="0" y="30" width="3" height="4" fill="#e8d3a2"/><rect x="61" y="30" width="3" height="4" fill="#e8d3a2"/></svg>`);
-  const rugBorder = svgURI(`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><rect width="48" height="48" fill="#5e1015"/><path d="M0 34 L8 26 L16 34 L24 26 L32 34 L40 26 L48 34" fill="none" stroke="#e8d3a2" stroke-width="3.5"/><path d="M0 18 L8 10 L16 18 L24 10 L32 18 L40 10 L48 18" fill="none" stroke="#c9493c" stroke-width="3"/><rect x="21" y="38" width="6" height="6" fill="#26356b" transform="rotate(45 24 41)"/><rect x="5" y="2" width="6" height="6" fill="#d8b06a" transform="rotate(45 8 5)"/><rect x="37" y="2" width="6" height="6" fill="#d8b06a" transform="rotate(45 40 5)"/></svg>`);
-  const weave = svgURI(`<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><filter id="w"><feTurbulence type="fractalNoise" baseFrequency="0.9 0.35" numOctaves="2" seed="4"/><feColorMatrix values="0 0 0 0 0.2  0 0 0 0 0.05  0 0 0 0 0.02  0 0 0 0.8 0"/></filter><rect width="200" height="200" filter="url(#w)"/></svg>`);
-  const chevron = svgURI(`<svg xmlns="http://www.w3.org/2000/svg" width="40" height="38" viewBox="0 0 40 38"><rect width="40" height="38" fill="#f1e4c4"/><rect y="4" width="40" height="2.2" fill="#2b5aa8"/><rect y="31.8" width="40" height="2.2" fill="#2b5aa8"/><path d="M0 26 L10 12 L20 26 L30 12 L40 26" fill="none" stroke="#2b5aa8" stroke-width="5" stroke-linejoin="miter"/><path d="M0 19 L10 5 L20 19" fill="none" stroke="#6f93cf" stroke-width="0" /></svg>`);
+  function kilimField(c) {
+    return svgURI(`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" fill="${c.bg}"/><path d="M32 4 L60 32 L32 60 L4 32Z" fill="none" stroke="${c.line}" stroke-width="5"/><path d="M32 16 L48 32 L32 48 L16 32Z" fill="${c.gold}"/><path d="M32 22 L42 32 L32 42 L22 32Z" fill="${c.inner}"/><path d="M32 27 L37 32 L32 37 L27 32Z" fill="${c.core}"/><path d="M0 0 L7 0 L0 7Z M64 0 L57 0 L64 7Z M0 64 L7 64 L0 57Z M64 64 L57 64 L64 57Z" fill="${c.cream}"/><rect x="30" y="0" width="4" height="3" fill="${c.cream}"/><rect x="30" y="61" width="4" height="3" fill="${c.cream}"/><rect x="0" y="30" width="3" height="4" fill="${c.cream}"/><rect x="61" y="30" width="3" height="4" fill="${c.cream}"/></svg>`);
+  }
+  function kilimBorder(c) {
+    return svgURI(`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><rect width="48" height="48" fill="${c.edge}"/><path d="M0 34 L8 26 L16 34 L24 26 L32 34 L40 26 L48 34" fill="none" stroke="${c.cream}" stroke-width="3.5"/><path d="M0 18 L8 10 L16 18 L24 10 L32 18 L40 10 L48 18" fill="none" stroke="${c.zig}" stroke-width="3"/><rect x="21" y="38" width="6" height="6" fill="${c.core}" transform="rotate(45 24 41)"/><rect x="5" y="2" width="6" height="6" fill="${c.gold}" transform="rotate(45 8 5)"/><rect x="37" y="2" width="6" height="6" fill="${c.gold}" transform="rotate(45 40 5)"/></svg>`);
+  }
+  function felt(color, seed) {
+    return svgURI(`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="${color}"/><filter id="f"><feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2" seed="${seed}"/><feColorMatrix values="0 0 0 0 0  0 0 0 0 0.1  0 0 0 0 0.05  0 0 0 0.35 0"/></filter><rect width="64" height="64" filter="url(#f)"/></svg>`);
+  }
+  const RUGS = {
+    red: { base: '#a3262b', field: kilimField({ bg: '#a3262b', line: '#6c1318', gold: '#d8b06a', inner: '#8f1f24', core: '#26356b', cream: '#e8d3a2' }), border: kilimBorder({ edge: '#5e1015', cream: '#e8d3a2', zig: '#c9493c', core: '#26356b', gold: '#d8b06a' }), size: 64 },
+    blue: { base: '#253f6e', field: kilimField({ bg: '#253f6e', line: '#162a4d', gold: '#e2b765', inner: '#8f2a2e', core: '#e8d3a2', cream: '#e8d3a2' }), border: kilimBorder({ edge: '#142646', cream: '#e8d3a2', zig: '#c9493c', core: '#e2b765', gold: '#e2b765' }), size: 64 },
+    green: { base: '#2f6b47', field: felt('#2f6b47', 3), border: felt('#1d4a31', 8), size: 64 },
+  };
   const rootStyle = document.documentElement.style;
   rootStyle.setProperty('--grain-a', grain(7, 500, 560, 0.0022, 0.05, 1.7));
   rootStyle.setProperty('--grain-b', grain(19, 500, 560, 0.0022, 0.05, 1.7));
   rootStyle.setProperty('--grain', grain(3, 600, 600, 0.002, 0.04, 1.5));
   rootStyle.setProperty('--table-grain', grain(11, 900, 600, 0.0015, 0.03, 1.2));
-  rootStyle.setProperty('--rug-field', rugField);
-  rootStyle.setProperty('--rug-border', rugBorder);
-  rootStyle.setProperty('--weave', weave);
-  rootStyle.setProperty('--chevron', chevron);
+  rootStyle.setProperty('--weave', svgURI(`<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><filter id="w"><feTurbulence type="fractalNoise" baseFrequency="0.9 0.35" numOctaves="2" seed="4"/><feColorMatrix values="0 0 0 0 0.2  0 0 0 0 0.05  0 0 0 0 0.02  0 0 0 0.8 0"/></filter><rect width="200" height="200" filter="url(#w)"/></svg>`));
+  rootStyle.setProperty('--chevron', svgURI(`<svg xmlns="http://www.w3.org/2000/svg" width="40" height="38" viewBox="0 0 40 38"><rect width="40" height="38" fill="#f1e4c4"/><rect y="4" width="40" height="2.2" fill="#2b5aa8"/><rect y="31.8" width="40" height="2.2" fill="#2b5aa8"/><path d="M0 26 L10 12 L20 26 L30 12 L40 26" fill="none" stroke="#2b5aa8" stroke-width="5" stroke-linejoin="miter"/></svg>`));
 
   /* ================= 盤面の座標（1000×560） ================= */
   const COLS = [214, 328, 442, 558, 672, 786];
@@ -65,18 +87,18 @@
   for (let i = 0; i < 14; i++) SLOTS[i] = buildSlots(i);
   function buildSlots(i) {
     const c = center(i);
-    const store = isStore(i);
+    const isSt = isStore(i);
     const r = mulberry(i * 131 + 7);
     const out = [];
-    const halfW = store ? 28 : 28;
-    const halfH = store ? 160 : 56;
-    for (let layer = 0; layer < 7; layer++) {
+    const halfW = 28;
+    const halfH = isSt ? 160 : 56;
+    for (let layer = 0; layer < 8; layer++) {
       const odd = layer % 2 === 1;
       const cand = [];
       const ox = odd ? 14 : 0, oy = odd ? 14 : 0;
       for (let y = -halfH + oy; y <= halfH - oy + 0.1; y += 28) {
-        for (let x = -halfW + ox; x <= halfW - ox + 0.1; x += store ? 28 : 28) {
-          cand.push({ x, y, k: Math.hypot(x * 0.8, y) + r() * (store ? 90 : 14) });
+        for (let x = -halfW + ox; x <= halfW - ox + 0.1; x += 28) {
+          cand.push({ x, y, k: Math.hypot(x * 0.8, y) + r() * (isSt ? 90 : 14) });
         }
       }
       cand.sort((a, b) => a.k - b.k);
@@ -87,6 +109,7 @@
     }
     return out;
   }
+  const slotOf = (i, k) => SLOTS[i][Math.min(k, SLOTS[i].length - 1)];
 
   /* ================= アバター ================= */
   function avatarSVG(o) {
@@ -149,28 +172,77 @@
       const g = ctx.createGain(); g.gain.value = vol;
       s.connect(f).connect(g).connect(ctx.destination); s.start(t);
     }
-    // ガラス同士が当たる「カチッ」
+    // 石が当たる音。ガラス玉は「カチッ」、ほかの石は少し低く短く
     function clink(delay, vol, pitch) {
       const c = ensure(); if (!c) return;
       const t = c.currentTime + (delay || 0);
-      const p = (pitch || 1) * (0.9 + Math.random() * 0.2);
+      const soft = settings.skinStone !== 'glass';
+      const p = (pitch || 1) * (0.9 + Math.random() * 0.2) * (soft ? 0.45 : 1);
       const v = vol == null ? 1 : vol;
-      tone(2350 * p, t, 0.09, 0.09 * v);
-      tone(3620 * p, t, 0.06, 0.05 * v);
-      tone(5480 * p, t, 0.04, 0.025 * v);
-      tick(t, 0.5 * v, 4200 * p);
+      tone(2350 * p, t, soft ? 0.05 : 0.09, 0.09 * v);
+      tone(3620 * p, t, soft ? 0.03 : 0.06, 0.05 * v);
+      if (!soft) tone(5480 * p, t, 0.04, 0.025 * v);
+      tick(t, 0.5 * v, (soft ? 1800 : 4200) * p);
     }
     return {
       unlock() { ensure(); },
-      drop(store) {
-        clink(0, store ? 0.8 : 1, store ? 0.78 : 1);
-        if (store) { const c = ensure(); if (c) tone(190, c.currentTime, 0.12, 0.08, 'triangle'); }
+      drop(isSt) {
+        clink(0, isSt ? 0.8 : 1, isSt ? 0.78 : 1);
+        if (isSt) { const c = ensure(); if (c) tone(190, c.currentTime, 0.12, 0.08, 'triangle'); }
       },
       pickup(n) { for (let k = 0; k < Math.min(n, 6); k++) clink(k * 0.028 + Math.random() * 0.02, 0.55, 1.08); },
       extra() { const c = ensure(); if (!c) return; const t = c.currentTime; [1046.5, 1318.5, 1568].forEach((f, k) => tone(f, t + k * 0.08, 0.3, 0.07, 'triangle')); },
       capture() { const c = ensure(); if (!c) return; const t = c.currentTime; [784, 1046.5, 1318.5, 1568].forEach((f, k) => tone(f, t + k * 0.06, 0.28, 0.07, 'square')); },
       win() { const c = ensure(); if (!c) return; const t = c.currentTime; [523, 659, 784, 1046.5, 784, 1046.5].forEach((f, k) => tone(f, t + k * 0.11, 0.35, 0.07, 'triangle')); },
       lose() { const c = ensure(); if (!c) return; const t = c.currentTime; [523, 466, 392, 330].forEach((f, k) => tone(f, t + k * 0.16, 0.4, 0.06, 'triangle')); },
+      hint() { const c = ensure(); if (!c) return; const t = c.currentTime; [1568, 2093].forEach((f, k) => tone(f, t + k * 0.07, 0.2, 0.05, 'sine')); },
+    };
+  })();
+
+  /* ================= CPUの思考（Web Workerで画面を止めない） ================= */
+  const brain = (function () {
+    let worker = null, seq = 0;
+    const pending = new Map();
+    try {
+      const src = $('#src-engine').textContent + '\n' + $('#src-ai').textContent + `
+self.onmessage = function (e) {
+  var d = e.data, r;
+  try {
+    if (d.kind === 'move') r = MancalaAI.chooseMove(d.state, d.level, { timeMs: d.timeMs });
+    else r = d.items.map(function (it) { return MancalaAI.scoreRoot(it, d.depth); });
+    self.postMessage({ id: d.id, r: r });
+  } catch (err) { self.postMessage({ id: d.id, err: String(err) }); }
+};`;
+      worker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+      worker.onmessage = (e) => {
+        const p = pending.get(e.data.id);
+        if (!p) return;
+        pending.delete(e.data.id);
+        if (e.data.err) p.resolve(p.local()); else p.resolve(e.data.r);
+      };
+      worker.onerror = () => {
+        worker = null;
+        for (const p of pending.values()) p.resolve(p.local());
+        pending.clear();
+      };
+    } catch (e) { worker = null; }
+    // Workerが使えない環境では、少し待ってから画面側で計算する
+    function run(msg, local) {
+      if (!worker) return new Promise((res) => setTimeout(() => res(local()), 30));
+      return new Promise((resolve) => {
+        const id = ++seq;
+        pending.set(id, { resolve, local });
+        worker.postMessage(Object.assign({ id }, msg));
+        // 応答がないときは画面側で計算する
+        setTimeout(() => {
+          const p = pending.get(id);
+          if (p) { pending.delete(id); resolve(local()); }
+        }, 5000);
+      });
+    }
+    return {
+      move: (state, level, timeMs) => run({ kind: 'move', state, level, timeMs }, () => AI.chooseMove(state, level, { timeMs })),
+      analyze: (items, depth) => run({ kind: 'analyze', items, depth }, () => items.map((it) => AI.scoreRoot(it, depth))),
     };
   })();
 
@@ -191,6 +263,7 @@
     if (i === 13) return '相手のゴール';
     return i < 6 ? `手前・左から${i + 1}番目の穴` : `奥・左から${13 - i}番目の穴`;
   }
+  const pitShort = (i) => (i < 6 ? `手前の左から${i + 1}番目` : `奥の左から${13 - i}番目`);
 
   function buildBoard() {
     board.textContent = '';
@@ -216,7 +289,8 @@
         p.type = 'button';
         p.dataset.i = i;
         p.style.width = L(PIT_W); p.style.height = T(PIT_H);
-        p.addEventListener('pointerenter', () => onHover(i));
+        p.addEventListener('pointerdown', (e) => { G.pointer = e.pointerType; });
+        p.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') onHover(i); });
         p.addEventListener('focus', () => onHover(i));
         p.addEventListener('click', () => onPick(i));
       }
@@ -227,7 +301,10 @@
       ct.style.left = L(cp.x); ct.style.top = T(cp.y);
       countEls[i] = ct;
     }
-    board.addEventListener('pointerleave', () => { clearGuide(); markHover(null); });
+    board.addEventListener('pointerleave', (e) => {
+      if (e.pointerType !== 'mouse' || G.hinted != null) return;
+      clearGuide(); markHover(null);
+    });
 
     guideEl = el('div', 'guide', board); guideEl.hidden = true;
     guideTag = el('div', 'guide-tag', board); guideTag.hidden = true;
@@ -250,23 +327,37 @@
     handCount = handEl.querySelector('.hand-count');
   }
 
-  /* ================= 石の表示 ================= */
-  const COLORS = [
-    ['255,110,180', '170,30,100'], // ピンク
-    ['170,110,235', '90,40,160'], // 紫
-    ['90,205,115', '25,120,55'], // 緑
-    ['80,150,240', '25,75,170'], // 青
-    ['255,145,55', '190,70,10'], // オレンジ
-    ['250,212,60', '180,130,10'], // 黄
-  ];
+  /* ================= 石と着せ替え ================= */
+  const STONE_COLORS = {
+    glass: [['255,110,180', '170,30,100'], ['170,110,235', '90,40,160'], ['90,205,115', '25,120,55'], ['80,150,240', '25,75,170'], ['255,145,55', '190,70,10'], ['250,212,60', '180,130,10']],
+    nut: [['176,112,52', '92,50,18'], ['150,92,42', '70,38,12'], ['198,138,74', '112,64,24'], ['128,78,38', '58,30,10'], ['170,106,58', '86,46,16'], ['142,98,54', '68,42,16']],
+    shell: [['252,243,226', '198,172,132'], ['247,229,206', '192,152,112'], ['253,246,236', '206,184,152'], ['242,224,202', '182,142,102'], ['250,236,220', '196,160,124'], ['245,238,228', '188,170,146']],
+    pebble: [['172,172,166', '96,96,92'], ['152,146,136', '82,76,70'], ['188,182,174', '112,106,98'], ['132,134,138', '66,68,72'], ['162,152,142', '92,84,76'], ['142,142,132', '76,76,68']],
+  };
+  function paintStone(e, id, kind) {
+    const c = STONE_COLORS[kind || settings.skinStone][id % 6];
+    e.style.setProperty('--c', c[0]);
+    e.style.setProperty('--d', c[1]);
+    e.style.setProperty('--rot', ((id * 67) % 360) + 'deg');
+  }
+  function applySkins() {
+    const d = document.documentElement.dataset;
+    d.stone = settings.skinStone;
+    d.board = settings.skinBoard;
+    const rug = RUGS[settings.skinRug] || RUGS.red;
+    rootStyle.setProperty('--rug', rug.base);
+    rootStyle.setProperty('--rug-field', rug.field);
+    rootStyle.setProperty('--rug-border', rug.border);
+    for (const [id, e] of view.stones) paintStone(e, id);
+    document.querySelectorAll('#sp-pit .stone').forEach((e, k) => paintStone(e, k));
+  }
+
   const view = { stones: new Map(), loc: [], hand: [], handPos: { x: 500, y: 280 }, nextId: 0 };
 
   function makeStone() {
     const id = view.nextId++;
     const e = el('div', 'stone', board);
-    const c = COLORS[id % COLORS.length];
-    e.style.setProperty('--c', c[0]);
-    e.style.setProperty('--d', c[1]);
+    paintStone(e, id);
     view.stones.set(id, e);
     return id;
   }
@@ -274,10 +365,10 @@
   function setupStones(pits) {
     board.classList.add('instant');
     const need = pits.reduce((a, b) => a + b, 0);
-    // 色がばらけるように並べ替えてから配置
     while (view.stones.size < need) makeStone();
     const ids = Array.from(view.stones.keys());
     while (ids.length > need) { const id = ids.pop(); view.stones.get(id).remove(); view.stones.delete(id); }
+    // 色がばらけるように並べ替えてから配置
     const rng = mulberry(need * 17 + pits[0] * 3 + pits[7]);
     for (let k = ids.length - 1; k > 0; k--) { const j = Math.floor(rng() * (k + 1)); [ids[k], ids[j]] = [ids[j], ids[k]]; }
     view.loc = Array.from({ length: 14 }, () => []);
@@ -298,7 +389,7 @@
   }
   function layoutLoc(i) {
     view.loc[i].forEach((id, k) => {
-      const s = SLOTS[i][Math.min(k, SLOTS[i].length - 1)];
+      const s = slotOf(i, k);
       placeStone(id, s.x, s.y, s.z);
       view.stones.get(id).classList.remove('held');
     });
@@ -314,6 +405,12 @@
       view.stones.get(id).classList.add('held');
     });
     handCount.textContent = view.hand.length > 1 ? String(view.hand.length) : '';
+  }
+  function dropInto(id, to, hop) {
+    view.loc[to].push(id);
+    const s = slotOf(to, view.loc[to].length - 1);
+    view.stones.get(id).classList.remove('held');
+    placeStone(id, s.x, s.y, s.z, hop);
   }
 
   function updateCounts(bump) {
@@ -333,9 +430,12 @@
     handEl.style.left = L(x); handEl.style.top = T(y);
     if (view.hand.length) layoutHand(false);
   }
+  // 奥の列では穴の下のほうを指して、穴の上の数字を隠さない
   function handAt(i) {
     const c = center(i);
-    moveHand(c.x + (isStore(i) ? 0 : 4), c.y - (isStore(i) ? 30 : 24));
+    if (isStore(i)) moveHand(c.x, c.y - 30);
+    else if (i >= 7) moveHand(c.x + 4, c.y + 30);
+    else moveHand(c.x + 4, c.y - 24);
   }
   function showHand(on, dim) {
     handEl.classList.toggle('off', !on);
@@ -345,10 +445,14 @@
   /* ================= アニメーション ================= */
   const CANCEL = { cancelled: true };
   let token = 0;
-  const SPEED = REDUCED ? 0.5 : 1;
+  const speed = () => (REDUCED ? 0.5 : 1) * (settings.speed === 'fast' ? 0.45 : 1);
+  function applySpeed() {
+    board.style.setProperty('--mv', (0.3 * speed()).toFixed(3) + 's');
+    board.style.setProperty('--hv', (0.22 * speed()).toFixed(3) + 's');
+  }
   function sleep(ms) {
     const t = token;
-    return new Promise((res, rej) => setTimeout(() => (t === token ? res() : rej(CANCEL)), ms * SPEED));
+    return new Promise((res, rej) => setTimeout(() => (t === token ? res() : rej(CANCEL)), ms * speed()));
   }
 
   const bannerEl = $('#banner');
@@ -382,16 +486,11 @@
       } else if (e.type === 'sow') {
         handAt(e.to);
         await sleep(90);
-        const id = view.hand.shift();
-        view.loc[e.to].push(id);
-        const k = view.loc[e.to].length - 1;
-        const s = SLOTS[e.to][Math.min(k, SLOTS[e.to].length - 1)];
-        view.stones.get(id).classList.remove('held');
-        placeStone(id, s.x, s.y, s.z, true);
+        dropInto(view.hand.shift(), e.to, true);
         layoutHand(false);
         updateCounts();
-        const store = isStore(e.to);
-        setTimeout(() => sfx.drop(store), 230 * SPEED);
+        const isSt = isStore(e.to);
+        setTimeout(() => sfx.drop(isSt), 230 * speed());
         await sleep(STEP - 90 + (e.remaining === 0 ? 180 : 0));
       } else if (e.type === 'capture') {
         flash(e.pit, 'flash'); flash(e.opposite, 'flash');
@@ -401,26 +500,19 @@
         const moving = view.loc[e.opposite].splice(0).concat(view.loc[e.pit].splice(0));
         handAt(e.store);
         for (const id of moving) {
-          view.loc[e.store].push(id);
-          const k = view.loc[e.store].length - 1;
-          const s = SLOTS[e.store][Math.min(k, SLOTS[e.store].length - 1)];
-          placeStone(id, s.x, s.y, s.z, true);
+          dropInto(id, e.store, true);
           updateCounts();
-          setTimeout(() => sfx.drop(true), 200 * SPEED);
+          setTimeout(() => sfx.drop(true), 200 * speed());
           await sleep(75);
         }
         await sleep(500);
       } else if (e.type === 'sweep') {
         await sleep(300);
         for (const p of e.pits) {
-          const moving = view.loc[p.pit].splice(0);
-          for (const id of moving) {
-            view.loc[e.store].push(id);
-            const k = view.loc[e.store].length - 1;
-            const s = SLOTS[e.store][Math.min(k, SLOTS[e.store].length - 1)];
-            placeStone(id, s.x, s.y, s.z, true);
+          for (const id of view.loc[p.pit].splice(0)) {
+            dropInto(id, e.store, true);
             updateCounts();
-            setTimeout(() => sfx.drop(true), 200 * SPEED);
+            setTimeout(() => sfx.drop(true), 200 * speed());
             await sleep(55);
           }
         }
@@ -437,21 +529,28 @@
 
   /* ================= ゲーム進行 ================= */
   const G = {
-    mode: null, // 'cpu' | 'pvp' | 'tutorial'
+    mode: null, // 'cpu' | 'pvp' | 'tutorial' | 'puzzle' | 'replay'
     state: null,
     players: null, // [{type,name}, {type,name}]
     level: 'normal',
+    rules: { seeds: 4, capture: true },
     busy: true,
     sel: null,
+    armed: null, // 2回タップで選ばれている穴
+    pointer: null,
+    hinted: null, // ヒントで光らせている穴
+    hints: 0,
     allow: null, // チュートリアルで押せる穴
+    hist: [], // 振り返り用 { pits, turn, move }
     lastStart: null,
   };
+  const isMatch = () => G.mode === 'cpu' || G.mode === 'pvp';
 
   const statusEl = $('#status');
   function setStatus(t) { statusEl.textContent = t; }
 
   function isHumanTurn() {
-    return G.state && !G.state.over && G.players[G.state.turn].type === 'human';
+    return !!G.state && !G.state.over && G.players[G.state.turn].type === 'human';
   }
   function canPlay(i) {
     if (G.busy || !isHumanTurn() || !E.isLegal(G.state, i)) return false;
@@ -465,6 +564,7 @@
     return G.state.turn === 0 ? list : list.slice().reverse();
   }
 
+  const hintBtn = $('#btn-hint');
   function refreshPits() {
     for (let i = 0; i < 14; i++) {
       if (isStore(i)) continue;
@@ -473,13 +573,15 @@
       pitEls[i].tabIndex = ok ? 0 : -1;
       pitEls[i].setAttribute('aria-disabled', ok ? 'false' : 'true');
     }
+    hintBtn.hidden = !isMatch();
+    hintBtn.disabled = !(isMatch() && isHumanTurn() && !G.busy);
   }
 
   function updateSeats() {
     const t = G.state ? G.state.turn : 0;
     for (const p of [0, 1]) {
       const seat = $('#seat-' + p);
-      seat.classList.toggle('active', !!G.state && !G.state.over && t === p && G.mode !== 'tutorial');
+      seat.classList.toggle('active', !!G.state && !G.state.over && t === p && isMatch());
       seat.classList.remove('thinking');
     }
   }
@@ -495,13 +597,18 @@
   function markHover(i) {
     for (let k = 0; k < 14; k++) if (!isStore(k)) pitEls[k].classList.toggle('hover', k === i);
   }
+  function clearMarks() {
+    for (const p of pitEls) p.classList.remove('armed', 'hinted');
+    G.armed = null;
+    G.hinted = null;
+  }
 
   function clearGuide() {
     guideEl.hidden = true;
     guideTag.hidden = true;
   }
-  function showGuideFor(pit) {
-    if (!settings.guide || !E.isLegal(G.state, pit)) { clearGuide(); return; }
+  function showGuideFor(pit, force) {
+    if ((!settings.guide && !force) || !E.isLegal(G.state, pit)) { clearGuide(); return; }
     const r = E.applyMove(G.state, pit, false);
     const land = r.landing;
     const c = center(land);
@@ -530,19 +637,33 @@
     const ok = canPlay(i);
     showHand(true, !ok);
     markHover(ok ? i : null);
-    if (ok) showGuideFor(i); else clearGuide();
+    if (ok) showGuideFor(i, G.hinted === i); else clearGuide();
   }
 
   function onPick(i) {
     sfx.unlock();
+    const pointer = G.pointer;
+    G.pointer = null;
     if (!canPlay(i)) return;
+    // スマホ：1回目のタップで選んでガイドを見せ、同じ穴をもう一度タップで配る
+    const touch = pointer === 'touch' || pointer === 'pen';
+    if (touch && settings.tap === 'double' && G.armed !== i) {
+      for (const p of pitEls) p.classList.remove('armed');
+      G.armed = i;
+      pitEls[i].classList.add('armed');
+      onHover(i);
+      setStatus('もう一度タップすると配ります');
+      return;
+    }
     playMove(i);
   }
 
   async function playMove(pit) {
     G.busy = true;
-    clearGuide(); markHover(null); refreshPits();
-    const res = E.applyMove(G.state, pit);
+    clearGuide(); markHover(null); clearMarks(); refreshPits();
+    const before = G.state;
+    const res = E.applyMove(before, pit);
+    if (isMatch()) G.hist.push({ pits: before.pits.slice(), turn: before.turn, move: pit });
     try {
       await animate(res);
     } catch (e) {
@@ -551,6 +672,7 @@
     }
     G.state = res.state;
     if (G.mode === 'tutorial') { tutorialAfterMove(res); return; }
+    if (G.mode === 'puzzle') { puzzleAfterMove(res); return; }
     nextTurn();
   }
 
@@ -558,6 +680,7 @@
     updateSeats();
     const s = G.state;
     if (s.over) { finishGame(); return; }
+    saveGame();
     setStatus(turnText());
     const pl = G.players[s.turn];
     if (pl.type === 'cpu') {
@@ -569,27 +692,28 @@
       refreshPits();
       const list = playableList();
       if (G.sel == null || !list.includes(G.sel)) G.sel = null;
-      if (G.sel != null) onHover(G.sel);
+      if (G.sel != null && G.pointer !== 'touch') onHover(G.sel);
       else if (list.length) { handAt(list[0]); showHand(true, true); }
     }
   }
 
   async function cpuTurn() {
     const s = G.state;
+    const t = token;
     const seat = $('#seat-' + s.turn);
     seat.classList.add('thinking');
     setStatus(`${G.players[s.turn].name}が考えています…`);
     showHand(true, true);
-    await sleep(380);
+    await sleep(300);
     const t0 = performance.now();
-    const move = AI.chooseMove(s, G.level, { timeMs: 600 });
+    const move = await brain.move(s, G.level, 600);
+    if (t !== token) throw CANCEL;
     const spent = performance.now() - t0;
-    if (spent < 350) await sleep(350 - spent);
+    if (spent < 400) await sleep(400 - spent);
     seat.classList.remove('thinking');
     setStatus(`${G.players[s.turn].name}の番です`);
     // 手袋が穴の上を移動してから配る
-    const legal = E.legalMoves(s);
-    const others = legal.filter((m) => m !== move);
+    const others = E.legalMoves(s).filter((m) => m !== move);
     if (others.length && Math.random() < 0.7) {
       handAt(others[Math.floor(Math.random() * others.length)]);
       showHand(true);
@@ -603,10 +727,34 @@
     await playMove(move);
   }
 
+  /* ヒント：むずかしいCPUの読みで最善手を光らせる */
+  async function showHint() {
+    if (!isMatch() || !isHumanTurn() || G.busy) return;
+    sfx.unlock();
+    const s = G.state;
+    const t = token;
+    hintBtn.disabled = true;
+    setStatus('ヒントを考えています…');
+    const m = await brain.move(s, 'hard', 700);
+    if (t !== token || G.state !== s || G.busy) return;
+    hintBtn.disabled = false;
+    G.hints++;
+    clearMarks();
+    G.hinted = m;
+    pitEls[m].classList.add('hinted');
+    onHover(m);
+    showGuideFor(m, true);
+    sfx.hint();
+    setStatus(`ヒント：${pitShort(m)}の穴がおすすめです`);
+  }
+
+  const LEVEL_NAME = { easy: 'やさしい', normal: 'ふつう', hard: 'むずかしい' };
+
   function finishGame() {
     G.busy = true;
     refreshPits();
     updateSeats();
+    clearSave();
     const s = G.state;
     const w = s.winner;
     const names = G.players.map((p) => p.name);
@@ -618,28 +766,32 @@
     banner('ゲーム終了', 'end');
     if (G.mode === 'cpu' && w === 1) sfx.lose(); else sfx.win();
     showHand(false);
+    G.final = s;
     const t = token;
-    setTimeout(() => {
-      if (t !== token) return;
-      $('#result-title').textContent = title;
-      $('#result-kicker').textContent = G.mode === 'cpu' ? `CPU（${LEVEL_NAME[G.level]}）との対戦` : 'ふたりで対戦';
-      const sc = $('#scoreline');
-      sc.innerHTML = '';
-      [0, 1].forEach((p, k) => {
-        if (k === 1) { const d = document.createElement('span'); d.className = 'dash'; d.textContent = '−'; sc.appendChild(d); }
-        const box = document.createElement('div');
-        box.className = 'side' + (w === p ? ' win' : '');
-        box.innerHTML = `<span class="num">${s.pits[E.storeOf(p)]}</span><span class="who"></span>`;
-        box.querySelector('.who').textContent = names[p];
-        sc.appendChild(box);
-      });
-      $('#result-actions').hidden = false;
-      $('#result').hidden = false;
-      $('#btn-again').focus();
-    }, 1300);
+    setTimeout(() => { if (t === token) showResult(title); }, 1300 * speed());
   }
-
-  const LEVEL_NAME = { easy: 'やさしい', normal: 'ふつう', hard: 'むずかしい' };
+  function showResult(title) {
+    const s = G.final;
+    const w = s.winner;
+    const names = G.players.map((p) => p.name);
+    $('#result-title').textContent = title;
+    const extra = [rulesText(G.rules)];
+    if (G.hints) extra.push(`ヒント${G.hints}回`);
+    $('#result-kicker').textContent = (G.mode === 'cpu' ? `CPU（${LEVEL_NAME[G.level]}）との対戦` : 'ふたりで対戦') + '　' + extra.join('・');
+    const sc = $('#scoreline');
+    sc.innerHTML = '';
+    [0, 1].forEach((p, k) => {
+      if (k === 1) { const d = document.createElement('span'); d.className = 'dash'; d.textContent = '−'; sc.appendChild(d); }
+      const box = document.createElement('div');
+      box.className = 'side' + (w === p ? ' win' : '');
+      box.innerHTML = `<span class="num">${s.pits[E.storeOf(p)]}</span><span class="who"></span>`;
+      box.querySelector('.who').textContent = names[p];
+      sc.appendChild(box);
+    });
+    restoreResultActions();
+    $('#result').hidden = false;
+    $('#btn-again').focus();
+  }
 
   function setSeats(p0, p1, av0, av1) {
     $('#name-0').textContent = p0;
@@ -649,47 +801,84 @@
   }
 
   function resetTable() {
+    RP.id = (RP.id || 0) + 1;
     board.classList.remove('pvp');
     token++;
-    $('#result').hidden = true;
+    stopAutoplay();
+    for (const id of ['result', 'confirm']) $('#' + id).hidden = true;
+    for (const id of ['tut', 'pz-panel', 'rp-panel']) $('#' + id).hidden = true;
+    $('#hint').hidden = false;
     bannerEl.className = 'banner';
     clearGuide();
     markHover(null);
+    clearMarks();
     G.sel = null;
     G.allow = null;
-    for (const p of pitEls) p.classList.remove('tut-target', 'tut-hi', 'tut-hi-opp', 'flash', 'skipped');
+    G.hints = 0;
+    for (const p of pitEls) p.classList.remove('tut-target', 'tut-hi', 'tut-hi-opp', 'flash', 'skipped', 'rp-from');
   }
 
-  function startCPU() {
+  /* ---------- 保存と続きから ---------- */
+  const SAVE_KEY = 'mancala-save';
+  function saveGame() {
+    if (!isMatch() || !G.state || G.state.over) return;
+    store.set(SAVE_KEY, { v: 2, mode: G.mode, level: G.level, rules: G.rules, state: G.state, hist: G.hist, hints: G.hints });
+  }
+  function clearSave() { store.del(SAVE_KEY); }
+  function loadSave() {
+    const d = store.get(SAVE_KEY, null);
+    if (d && d.v === 2 && d.state && Array.isArray(d.state.pits) && d.state.pits.length === 14 && !d.state.over && Array.isArray(d.hist)) return d;
+    return null;
+  }
+
+  function setupMatch(mode, level, rules) {
     resetTable();
-    G.mode = 'cpu';
-    G.level = settings.level;
-    let first = settings.order === 'second' ? 1 : settings.order === 'random' ? (Math.random() < 0.5 ? 0 : 1) : 0;
-    G.players = [{ type: 'human', name: 'あなた' }, { type: 'cpu', name: `CPU（${LEVEL_NAME[G.level]}）` }];
-    setSeats('あなた', `CPU・${LEVEL_NAME[G.level]}`, 'me', G.level);
-    G.state = E.createState({ first });
-    G.lastStart = startCPU;
-    enterGame();
+    G.mode = mode;
+    G.rules = rules;
+    G.hist = [];
+    if (mode === 'cpu') {
+      G.level = level;
+      G.players = [{ type: 'human', name: 'あなた' }, { type: 'cpu', name: `CPU（${LEVEL_NAME[level]}）` }];
+      setSeats('あなた', `CPU・${LEVEL_NAME[level]}`, 'me', level);
+      G.lastStart = startCPU;
+    } else {
+      board.classList.add('pvp');
+      G.players = [{ type: 'human', name: 'プレイヤー1' }, { type: 'human', name: 'プレイヤー2' }];
+      setSeats('プレイヤー1', 'プレイヤー2', 'me', 'p2');
+      G.lastStart = startPVP;
+    }
+  }
+  function startCPU() {
+    setupMatch('cpu', settings.level, rulesNow());
+    const first = settings.order === 'second' ? 1 : settings.order === 'random' ? (Math.random() < 0.5 ? 0 : 1) : 0;
+    G.state = E.createState({ first, seeds: G.rules.seeds, capture: G.rules.capture });
+    enterGame(true);
   }
   function startPVP() {
-    resetTable();
-    G.mode = 'pvp';
-    board.classList.add('pvp');
-    G.players = [{ type: 'human', name: 'プレイヤー1' }, { type: 'human', name: 'プレイヤー2' }];
-    setSeats('プレイヤー1', 'プレイヤー2', 'me', 'p2');
-    G.state = E.createState({ first: 0 });
-    G.lastStart = startPVP;
-    enterGame();
+    setupMatch('pvp', settings.level, rulesNow());
+    G.state = E.createState({ first: 0, seeds: G.rules.seeds, capture: G.rules.capture });
+    enterGame(true);
   }
-  function enterGame() {
-    $('#tut').hidden = true;
-    $('#hint').hidden = false;
+  function resumeGame() {
+    const d = loadSave();
+    if (!d) { refreshMenu(); return; }
+    setupMatch(d.mode, d.level || 'normal', d.rules || { seeds: 4, capture: true });
+    G.state = d.state;
+    G.hist = d.hist;
+    G.hints = d.hints || 0;
+    enterGame(false);
+  }
+  function enterGame(fresh) {
     showScreen('game');
     setupStones(G.state.pits);
     showHand(false);
-    if (G.mode === 'cpu' && G.state.turn === 1) banner('CPUが先攻', 'end');
+    const cpuFirst = fresh && G.mode === 'cpu' && G.state.turn === 1;
+    if (cpuFirst) banner('CPUが先攻', 'end');
+    else if (!fresh) banner('続きから', 'end');
     G.busy = true;
-    setTimeout(() => nextTurn(), G.mode === 'cpu' && G.state.turn === 1 ? 900 : 50);
+    refreshPits();
+    const t = token;
+    setTimeout(() => { if (t === token) nextTurn(); }, cpuFirst || !fresh ? 900 : 50);
   }
 
   /* ================= チュートリアル ================= */
@@ -713,7 +902,7 @@
       body: '最後の1個がちょうど自分のゴールに入ると、続けてもう1回遊べます。左から3番目の穴には石が4個。ゴールまでちょうど4つです。押してみましょう。',
       pits: INIT,
       allow: [2],
-      after: 'ぴったりゴールに入ったので「もう一回！」です。ガイドがオンなら、穴にカーソルを合わせたときに最後の1個が入る場所が光ります。',
+      after: 'ぴったりゴールに入ったので「もう一回！」です。ガイドがオンなら、穴を選んだときに最後の1個が入る場所が光ります。',
     },
     {
       title: '横取り',
@@ -745,14 +934,13 @@
     setSeats('あなた', 'あいて', 'me', 'easy');
     G.lastStart = startTutorial;
     showScreen('game');
-    $('#tut').hidden = false;
-    $('#hint').hidden = true;
-    G.tutStep = 0;
     loadTutStep(0);
   }
 
   function loadTutStep(k) {
     resetTable();
+    $('#tut').hidden = false;
+    $('#hint').hidden = true;
     G.tutStep = k;
     const st = TUT[k];
     G.state = E.fromPits(st.pits, 0);
@@ -767,10 +955,7 @@
     next.textContent = k === TUT.length - 1 ? 'チュートリアルを終える' : '次へ';
     setStatus('チュートリアル — ' + st.title);
     if (st.hi) {
-      for (let i = 0; i < 14; i++) {
-        if (i <= 6) pitEls[i].classList.add('tut-hi');
-        else pitEls[i].classList.add('tut-hi-opp');
-      }
+      for (let i = 0; i < 14; i++) pitEls[i].classList.add(i <= 6 ? 'tut-hi' : 'tut-hi-opp');
       showHand(false);
       next.hidden = false;
       G.busy = true;
@@ -803,45 +988,540 @@
     if (G.tutStep < TUT.length - 1) { loadTutStep(G.tutStep + 1); return; }
     // 修了
     resetTable();
+    $('#tut').hidden = false;
     G.busy = true;
     showHand(false);
     $('#result-kicker').textContent = 'チュートリアル';
     $('#result-title').textContent = 'おつかれさま！';
-    $('#scoreline').innerHTML = '<p style="margin:0;line-height:1.7">配り方・もう一回・横取り・終わり方を覚えました。<br>CPUと対戦してみましょう。</p>';
-    const acts = $('#result-actions');
-    acts.innerHTML = '';
-    const b1 = document.createElement('button');
-    b1.className = 'btn btn-main'; b1.type = 'button'; b1.textContent = 'CPU（やさしい）と対戦';
-    b1.onclick = () => { settings.level = 'easy'; syncMenu(); saveSettings(); restoreResultActions(); startCPU(); };
-    const b2 = document.createElement('button');
-    b2.className = 'btn'; b2.type = 'button'; b2.textContent = 'メニューへ';
-    b2.onclick = () => { restoreResultActions(); goMenu(); };
-    acts.append(b1, b2);
+    $('#scoreline').innerHTML = '<p style="margin:0;line-height:1.7">配り方・もう一回・横取り・終わり方を覚えました。<br>CPUと対戦するか、パズルに挑戦してみましょう。</p>';
+    setResultActions([
+      ['CPU（やさしい）と対戦', true, () => { settings.level = 'easy'; syncMenu(); saveSettings(); startCPU(); }],
+      ['パズルに挑戦', false, () => openPuzzleList()],
+      ['メニューへ', false, () => goMenu()],
+    ]);
     $('#result').hidden = false;
-    b1.focus();
   }
-  function restoreResultActions() {
-    const acts = $('#result-actions');
-    acts.innerHTML = '';
-    acts.append(btnAgain, btnToMenu);
+
+  /* ================= パズル ================= */
+  const PZ_KEY = 'mancala-puzzles';
+  const pzCleared = () => new Set(store.get(PZ_KEY, []));
+  function markCleared(i) { const s = pzCleared(); s.add(i); store.set(PZ_KEY, Array.from(s)); }
+  const starText = (n) => '★'.repeat(n) + '☆'.repeat(3 - n);
+
+  function openPuzzleList() {
+    resetTable();
+    G.mode = null; G.state = null; G.busy = true;
+    showHand(false);
+    const grid = $('#pz-grid');
+    grid.textContent = '';
+    const done = pzCleared();
+    PZ.PUZZLES.forEach((q, i) => {
+      const b = el('button', 'pz-card' + (done.has(i) ? ' done' : ''), grid);
+      b.type = 'button';
+      b.innerHTML = `<span class="pz-no"></span><span class="pz-stars"></span><b class="pz-name"></b><span class="pz-goal-s"></span><span class="pz-done">クリア済み</span>`;
+      b.querySelector('.pz-no').textContent = `第${i + 1}問`;
+      const st = b.querySelector('.pz-stars');
+      st.textContent = starText(q.stars);
+      st.setAttribute('aria-label', `むずかしさ${q.stars}`);
+      b.querySelector('.pz-name').textContent = q.title;
+      b.querySelector('.pz-goal-s').textContent = PZ.goalText(q.goal);
+      b.addEventListener('click', () => { sfx.unlock(); startPuzzle(i); });
+    });
+    showScreen('puzzles');
+    $('#puzzles').scrollTop = 0;
+  }
+
+  function startPuzzle(i) {
+    resetTable();
+    const q = PZ.PUZZLES[i];
+    G.mode = 'puzzle';
+    G.pz = { i, progress: null, done: false };
+    G.players = [{ type: 'human', name: 'あなた' }, { type: 'none', name: 'あいて' }];
+    setSeats('あなた', 'あいて', 'me', 'normal');
+    showScreen('game');
+    $('#pz-panel').hidden = false;
+    $('#hint').hidden = true;
+    G.state = E.fromPits(q.pits, 0);
+    G.pz.progress = PZ.newProgress(G.state);
+    setupStones(G.state.pits);
+    updateSeats();
+    $('#pz-step').textContent = `パズル 第${i + 1}問 / ${PZ.PUZZLES.length}　${starText(q.stars)}`;
+    $('#pz-title').textContent = q.title;
+    $('#pz-text').textContent = q.text;
+    $('#pz-goal').textContent = PZ.goalText(q.goal);
+    $('#pz-msg').hidden = true;
+    $('#pz-next').hidden = true;
+    $('#pz-hint').hidden = false;
+    updatePuzzleNow();
+    setStatus(`パズル — ${q.title}`);
+    G.busy = false;
+    refreshPits();
+    const list = playableList();
+    if (list.length) { handAt(list[0]); showHand(true, true); }
+  }
+
+  function updatePuzzleNow() {
+    const q = PZ.PUZZLES[G.pz.i];
+    const p = G.pz.progress;
+    let t;
+    if (q.goal.type === 'chain') t = `いま：もう一回 ${p.chain}回`;
+    else if (q.goal.type === 'store') t = `いま：このターンでゴールに ${p.gain}個`;
+    else if (q.goal.type === 'capture') t = `いま：いちばん多い横取り ${p.capture}個`;
+    else t = `いま：ゴールの石 あなた ${G.state.pits[6]}個・あいて ${G.state.pits[13]}個`;
+    $('#pz-now').textContent = t;
+  }
+
+  function puzzleAfterMove(res) {
+    G.pz.progress = PZ.step(G.pz.progress, res);
+    updatePuzzleNow();
+    const q = PZ.PUZZLES[G.pz.i];
+    const msg = $('#pz-msg');
+    if (PZ.met(q.goal, G.pz.progress)) {
+      G.pz.done = true;
+      G.busy = true;
+      refreshPits();
+      markCleared(G.pz.i);
+      banner('クリア！', 'extra');
+      sfx.win();
+      msg.textContent = G.pz.i < PZ.PUZZLES.length - 1 ? 'クリアしました！ 次のパズルに進みましょう。' : 'クリアしました！ これで全問です。おつかれさま！';
+      msg.hidden = false;
+      $('#pz-next').hidden = G.pz.i >= PZ.PUZZLES.length - 1;
+      $('#pz-hint').hidden = true;
+      setStatus('クリア！');
+      showHand(false);
+      return;
+    }
+    if (PZ.turnOver(res.state)) {
+      G.busy = true;
+      refreshPits();
+      banner('ざんねん', 'end');
+      msg.textContent = '手番が相手に移ってしまいました。「やり直す」でもう一度挑戦しましょう。';
+      msg.hidden = false;
+      setStatus('目標に届きませんでした');
+      showHand(false);
+      return;
+    }
+    msg.hidden = true;
+    G.busy = false;
+    refreshPits();
+    setStatus('続けてもう1回動かせます');
+    const list = playableList();
+    if (list.length) { handAt(list[0]); showHand(true, true); }
+  }
+
+  function puzzleHint() {
+    if (G.mode !== 'puzzle' || G.busy || !isHumanTurn()) return;
+    const q = PZ.PUZZLES[G.pz.i];
+    const line = PZ.solve(G.state, q.goal, G.pz.progress);
+    const msg = $('#pz-msg');
+    if (!line || !line.length) {
+      msg.textContent = 'この盤面からは目標に届きません。「やり直す」を押しましょう。';
+      msg.hidden = false;
+      return;
+    }
+    clearMarks();
+    G.hinted = line[0];
+    pitEls[line[0]].classList.add('hinted');
+    onHover(line[0]);
+    showGuideFor(line[0], true);
+    sfx.hint();
+    msg.textContent = `ヒント：${pitShort(line[0])}の穴から動かしてみましょう。`;
+    msg.hidden = false;
+  }
+
+  /* ================= 振り返り ================= */
+  const RP = { k: 0, busy: false, auto: null, analysis: null, diffs: [], states: [] };
+
+  function stateAt(k) {
+    if (k >= G.hist.length) return G.final;
+    const h = G.hist[k];
+    return E.fromPits(h.pits, h.turn, G.rules);
+  }
+
+  function startReplay() {
+    if (!G.hist.length) return;
+    const keepFinal = G.final;
+    const hist = G.hist;
+    const names = G.players.map((p) => p.name);
+    token++;
+    stopAutoplay();
+    $('#result').hidden = true;
+    bannerEl.className = 'banner';
+    clearGuide(); markHover(null); clearMarks();
+    G.hist = hist;
+    G.final = keepFinal;
+    G.replayOf = G.mode;
+    G.mode = 'replay';
+    G.busy = true;
+    refreshPits();
+    showHand(false);
+    $('#rp-panel').hidden = false;
+    $('#hint').hidden = true;
+    RP.names = names;
+    RP.states = [];
+    for (let k = 0; k <= hist.length; k++) RP.states.push(stateAt(k));
+    RP.diffs = RP.states.map((s) => s.pits[6] - s.pits[13]);
+    RP.analysis = null;
+    $('#rp-summary').textContent = '手の良し悪しを分析しています…';
+    setStatus('対局の振り返り');
+    jumpTo(0);
+    drawGraph();
+    // 各手を深く読み、最善手との差を出す（Workerで計算）
+    const id = (RP.id = (RP.id || 0) + 1);
+    brain.analyze(hist.map((h) => E.fromPits(h.pits, h.turn, G.rules)), 8).then((all) => {
+      if (RP.id !== id || G.mode !== 'replay') return;
+      RP.analysis = all.map((scored, k) => {
+        const mv = hist[k].move;
+        const best = scored[0];
+        const mine = scored.find((x) => x.m === mv) || best;
+        const loss = Math.max(0, best.v - mine.v);
+        return { best: best.m, loss, grade: grade(loss, scored.length) };
+      });
+      writeSummary();
+      showReplayMove();
+      drawGraph();
+    });
+  }
+  function grade(loss, n) {
+    if (n <= 1) return { key: 'only', text: 'この手しかない' };
+    if (loss < 0.5) return { key: 'best', text: '最善手' };
+    if (loss < 2) return { key: 'good', text: 'まずまず' };
+    if (loss < 5) return { key: 'dubious', text: '疑問手' };
+    return { key: 'bad', text: '悪手' };
+  }
+  function writeSummary() {
+    const A = RP.analysis;
+    const who = G.replayOf === 'cpu' ? [0] : [0, 1];
+    const parts = who.map((p) => {
+      const ks = G.hist.map((h, k) => k).filter((k) => G.hist[k].turn === p);
+      const best = ks.filter((k) => ['best', 'only'].includes(A[k].grade.key)).length;
+      const bad = ks.filter((k) => A[k].grade.key === 'bad').length;
+      return `${RP.names[p]}：最善手 ${best} / ${ks.length}手・悪手 ${bad}回`;
+    });
+    let worst = -1, wl = 0;
+    A.forEach((a, k) => { if (who.includes(G.hist[k].turn) && a.loss > wl) { wl = a.loss; worst = k; } });
+    const s = $('#rp-summary');
+    s.textContent = parts.join('　');
+    if (worst >= 0 && wl >= 2) {
+      const b = el('button', 'linkish', s);
+      b.type = 'button';
+      b.textContent = `いちばん差がついた手（${worst + 1}手目）を見る`;
+      b.addEventListener('click', () => { stopAutoplay(); jumpTo(worst); });
+    }
+  }
+
+  function jumpTo(k) {
+    token++;
+    RP.busy = false;
+    RP.k = Math.max(0, Math.min(k, G.hist.length));
+    G.state = RP.states[RP.k];
+    setupStones(G.state.pits);
+    showHand(false);
+    clearGuide();
+    showReplayMove();
+    drawGraph();
+  }
+
+  async function stepForward() {
+    if (RP.busy || RP.k >= G.hist.length) return false;
+    RP.busy = true;
+    const h = G.hist[RP.k];
+    const s = RP.states[RP.k];
+    const res = E.applyMove(s, h.move);
+    for (const p of pitEls) p.classList.remove('rp-from');
+    try {
+      await animate(res);
+    } catch (e) {
+      if (e === CANCEL) return false;
+      throw e;
+    }
+    RP.k++;
+    G.state = RP.states[RP.k];
+    RP.busy = false;
+    showHand(false);
+    showReplayMove();
+    drawGraph();
+    return true;
+  }
+
+  function showReplayMove() {
+    const n = G.hist.length;
+    const k = RP.k;
+    $('#rp-count').textContent = `${k} / ${n} 手目`;
+    for (const p of pitEls) p.classList.remove('rp-from');
+    const ev = $('#rp-eval');
+    ev.className = 'rp-eval';
+    if (k >= n) {
+      const s = G.final;
+      $('#rp-move').textContent = `終局：${RP.names[0]} ${s.pits[6]}個 − ${s.pits[13]}個 ${RP.names[1]}`;
+      ev.textContent = '';
+      clearGuide();
+    } else {
+      const h = G.hist[k];
+      const r = E.applyMove(RP.states[k], h.move, false);
+      const what = r.gameOver ? 'ゲーム終了' : r.extraTurn ? 'もう一回' : r.capture ? `横取り ${r.capture.count}個` : '';
+      $('#rp-move').textContent = `次の手（${k + 1}手目）：${RP.names[h.turn]}が${pitShort(h.move)}の穴${what ? ' → ' + what : ''}`;
+      pitEls[h.move].classList.add('rp-from');
+      if (RP.analysis) {
+        const a = RP.analysis[k];
+        ev.classList.add('g-' + a.grade.key);
+        let t = `評価：${a.grade.text}`;
+        if (a.best !== h.move && a.grade.key !== 'best') {
+          const rb = E.applyMove(RP.states[k], a.best, false);
+          const bw = rb.gameOver ? 'ゲーム終了' : rb.extraTurn ? 'もう一回' : rb.capture ? `横取り ${rb.capture.count}個` : '';
+          t += `　おすすめは${pitShort(a.best)}の穴${bw ? '（' + bw + '）' : ''}`;
+        }
+        ev.textContent = t;
+      } else ev.textContent = '評価：分析中…';
+    }
+    $('#rp-prev').disabled = k === 0;
+    $('#rp-first').disabled = k === 0;
+    $('#rp-next').disabled = k >= n;
+    $('#rp-last').disabled = k >= n;
+    $('#rp-play').textContent = RP.auto ? '一時停止' : k >= n ? '最初から再生' : '自動再生';
+  }
+
+  // ゴールの差（手前 − 奥）の折れ線。0の線を基準に、上が手前のプレイヤーのリード
+  function drawGraph() {
+    const svg = $('#rp-graph');
+    const d = RP.diffs;
+    const n = d.length - 1;
+    const W = 320, H = 110, pl = 30, pr = 8, pt = 12, pb = 14;
+    const m = Math.max(4, Math.ceil(Math.max(...d.map(Math.abs)) / 2) * 2);
+    const x = (k) => pl + (n ? (k / n) * (W - pl - pr) : 0);
+    const y = (v) => pt + ((m - v) / (2 * m)) * (H - pt - pb);
+    const path = d.map((v, k) => `${k ? 'L' : 'M'}${x(k).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
+    let marks = '';
+    if (RP.analysis) {
+      RP.analysis.forEach((a, k) => {
+        if (a.grade.key === 'bad') marks += `<circle cx="${x(k + 1).toFixed(1)}" cy="${y(d[k + 1]).toFixed(1)}" r="3.2" class="g-badpt"/>`;
+      });
+    }
+    svg.innerHTML = `
+      <line x1="${pl}" x2="${W - pr}" y1="${y(m)}" y2="${y(m)}" class="g-grid"/>
+      <line x1="${pl}" x2="${W - pr}" y1="${y(-m)}" y2="${y(-m)}" class="g-grid"/>
+      <line x1="${pl}" x2="${W - pr}" y1="${y(0)}" y2="${y(0)}" class="g-zero"/>
+      <text x="${pl - 5}" y="${y(m) + 3}" class="g-lab" text-anchor="end">+${m}</text>
+      <text x="${pl - 5}" y="${y(0) + 3}" class="g-lab" text-anchor="end">0</text>
+      <text x="${pl - 5}" y="${y(-m) + 3}" class="g-lab" text-anchor="end">−${m}</text>
+      <text x="${pl + 2}" y="${pt - 3}" class="g-lab">↑ ${RP.names[0]}がリード</text>
+      <text x="${pl + 2}" y="${H - 3}" class="g-lab">↓ ${RP.names[1]}がリード</text>
+      <path d="${path}" class="g-line"/>
+      ${marks}
+      <line x1="${x(RP.k)}" x2="${x(RP.k)}" y1="${pt}" y2="${H - pb}" class="g-cursor"/>
+      <circle cx="${x(RP.k)}" cy="${y(d[RP.k])}" r="4.5" class="g-now"/>
+      <rect x="${pl}" y="0" width="${W - pl - pr}" height="${H}" fill="transparent" class="g-hit"/>`;
+    svg.dataset.n = n;
+  }
+  function graphIndex(ev) {
+    const svg = $('#rp-graph');
+    const r = svg.getBoundingClientRect();
+    const n = Number(svg.dataset.n) || 0;
+    const px = ((ev.clientX - r.left) / r.width) * 320;
+    return Math.max(0, Math.min(n, Math.round(((px - 30) / (320 - 38)) * n)));
+  }
+  function graphTip(ev) {
+    const k = graphIndex(ev);
+    const tip = $('#rp-tip');
+    const v = RP.diffs[k];
+    let t = k === 0 ? '開始' : `${k}手目 ${RP.names[G.hist[k - 1].turn]}`;
+    t += `　差 ${v > 0 ? '+' : ''}${v}`;
+    if (k > 0 && RP.analysis) t += `　${RP.analysis[k - 1].grade.text}`;
+    tip.textContent = t;
+    const wrap = tip.parentElement.getBoundingClientRect();
+    tip.style.left = Math.min(Math.max(ev.clientX - wrap.left, 50), wrap.width - 50) + 'px';
+    tip.hidden = false;
+  }
+
+  function stopAutoplay() {
+    if (RP.auto) { RP.auto = null; }
+  }
+  async function autoplay() {
+    if (RP.auto) { stopAutoplay(); showReplayMove(); return; }
+    if (RP.k >= G.hist.length) jumpTo(0);
+    const me = {};
+    RP.auto = me;
+    showReplayMove();
+    while (RP.auto === me && RP.k < G.hist.length) {
+      const ok = await stepForward();
+      if (!ok) break;
+      try { await sleep(350); } catch (e) { break; }
+    }
+    if (RP.auto === me) RP.auto = null;
+    if (G.mode === 'replay') showReplayMove();
   }
 
   /* ================= 画面切り替え ================= */
   function showScreen(name) {
-    for (const id of ['menu', 'game', 'rules']) $('#' + id).hidden = id !== name;
+    for (const id of ['menu', 'game', 'rules', 'puzzles', 'skins']) $('#' + id).hidden = id !== name;
+  }
+  function refreshMenu() {
+    const d = loadSave();
+    const b = $('#btn-resume');
+    b.hidden = !d;
+    if (d) {
+      const who = d.mode === 'cpu' ? `CPU・${LEVEL_NAME[d.level] || 'ふつう'}と対戦中` : 'ふたりで対戦中';
+      $('#resume-info').textContent = `${who}（${rulesText(d.rules || { seeds: 4, capture: true })}）・${d.hist.length}手目まで`;
+    }
+    $('#puzzle-progress').textContent = `クリア ${pzCleared().size} / ${PZ.PUZZLES.length}問`;
   }
   function goMenu() {
     resetTable();
+    G.mode = null;
     G.state = null;
     G.busy = true;
     showHand(false);
+    refreshMenu();
     showScreen('menu');
     $('#btn-cpu').focus({ preventScroll: true });
   }
 
+  function confirmBox(title, body, okText, cancelText) {
+    return new Promise((resolve) => {
+      const m = $('#confirm');
+      $('#confirm-title').textContent = title;
+      $('#confirm-body').textContent = body;
+      const ok = $('#confirm-ok'), cancel = $('#confirm-cancel');
+      ok.textContent = okText; cancel.textContent = cancelText;
+      const done = (v) => { m.hidden = true; ok.onclick = cancel.onclick = null; resolve(v); };
+      ok.onclick = () => done(true);
+      cancel.onclick = () => done(false);
+      m.hidden = false;
+      cancel.focus();
+    });
+  }
+
+  async function onBack() {
+    if (G.mode === 'puzzle') { openPuzzleList(); return; }
+    if (isMatch() && G.state && !G.state.over && G.hist.length > 0) {
+      const ok = await confirmBox('対局をやめますか？', 'いまの対局は保存されます。メニューの「続きから遊ぶ」で再開できます。', 'メニューへ', '対局を続ける');
+      if (!ok) return;
+    }
+    goMenu();
+  }
+
+  const btnAgain = $('#btn-again');
+  const btnReview = $('#btn-review');
+  const btnToMenu = $('#btn-tomenu');
+  function restoreResultActions() {
+    const acts = $('#result-actions');
+    acts.textContent = '';
+    acts.append(btnAgain, btnReview, btnToMenu);
+    btnReview.hidden = !G.hist.length;
+  }
+  function setResultActions(list) {
+    const acts = $('#result-actions');
+    acts.textContent = '';
+    list.forEach(([text, main, fn], k) => {
+      const b = el('button', main ? 'btn btn-main' : 'btn', acts);
+      b.type = 'button';
+      b.textContent = text;
+      b.addEventListener('click', fn);
+      if (k === 0) setTimeout(() => b.focus(), 0);
+    });
+  }
+
+  /* ================= 設定・着せ替え ================= */
+  function syncSettingsForm() {
+    const val = { guide: settings.guide ? 'on' : 'off', sound: settings.sound ? 'on' : 'off', speed: settings.speed, tap: settings.tap };
+    document.querySelectorAll('input[data-setting]').forEach((r) => { r.checked = val[r.dataset.setting] === r.value; });
+  }
+  document.querySelectorAll('input[data-setting]').forEach((r) => r.addEventListener('change', () => {
+    const k = r.dataset.setting;
+    if (k === 'guide') settings.guide = r.value === 'on';
+    else if (k === 'sound') settings.sound = r.value === 'on';
+    else settings[k] = r.value;
+    saveSettings();
+    applySpeed();
+    if (k === 'sound') sfx.unlock();
+    if (k === 'guide' && !settings.guide) clearGuide();
+  }));
+  function openSettings() {
+    syncSettingsForm();
+    $('#settings').hidden = false;
+    $('#settings-close').focus();
+  }
+  $('#settings-close').addEventListener('click', () => {
+    $('#settings').hidden = true;
+    if (G.mode && G.sel != null && canPlay(G.sel) && settings.guide) showGuideFor(G.sel);
+  });
+
+  // 全画面（対応ブラウザのみ）。全画面にしたら横向きに固定を試みる
+  const fullBtn = $('#btn-full');
+  const docEl = document.documentElement;
+  fullBtn.hidden = !(document.fullscreenEnabled && docEl.requestFullscreen);
+  function syncFull() { fullBtn.textContent = document.fullscreenElement ? '全画面を終了' : '全画面にする'; }
+  fullBtn.addEventListener('click', async () => {
+    try {
+      if (document.fullscreenElement) { await document.exitFullscreen(); return; }
+      await docEl.requestFullscreen({ navigationUI: 'hide' });
+      if (screen.orientation && screen.orientation.lock && matchMedia('(pointer: coarse)').matches) {
+        await screen.orientation.lock('landscape').catch(() => {});
+      }
+    } catch (e) { /* 全画面にできない環境では何もしない */ }
+  });
+  document.addEventListener('fullscreenchange', syncFull);
+  syncFull();
+
+  function buildSkinScreen() {
+    const pit = $('#sp-pit');
+    pit.textContent = '';
+    for (let k = 0; k < 6; k++) paintStone(el('div', 'stone', pit), k);
+    document.querySelectorAll('.sw-stone').forEach((sw) => {
+      sw.textContent = '';
+      const kind = sw.dataset.kind;
+      for (let k = 0; k < 3; k++) paintStone(el('span', 'stone k k-' + kind, sw), k * 2, kind);
+    });
+    document.querySelectorAll('.sw-board').forEach((sw) => { sw.classList.add('k-' + sw.dataset.kind); });
+    document.querySelectorAll('.sw-rug').forEach((sw) => {
+      const r = RUGS[sw.dataset.kind];
+      sw.style.backgroundColor = r.base;
+      sw.style.backgroundImage = r.field;
+    });
+  }
+  function syncSkinForm() {
+    for (const [name, v] of [['skinStone', settings.skinStone], ['skinBoard', settings.skinBoard], ['skinRug', settings.skinRug]]) {
+      document.querySelectorAll(`input[name="${name}"]`).forEach((r) => { r.checked = r.value === v; });
+    }
+  }
+  ['skinStone', 'skinBoard', 'skinRug'].forEach((name) => {
+    document.querySelectorAll(`input[name="${name}"]`).forEach((r) => r.addEventListener('change', () => {
+      settings[name] = r.value;
+      saveSettings();
+      applySkins();
+      if (name === 'skinStone') sfx.drop(false);
+    }));
+  });
+
+  /* ================= メニューの選択 ================= */
+  function syncMenu() {
+    const pick = (id) => { const e = document.getElementById(id); if (e) e.checked = true; };
+    pick('lv-' + settings.level);
+    pick('od-' + settings.order);
+    pick('rs-' + settings.seeds);
+    pick(settings.capture ? 'rc-on' : 'rc-off');
+    $('#rule-note').textContent = rulesText(rulesNow()).replace('各穴' + settings.seeds + '個', `各穴${settings.seeds}個（合計${settings.seeds * 12}個）`) +
+      (settings.seeds === 4 && settings.capture ? '（標準ルール）' : '');
+  }
+  document.querySelectorAll('input[name="level"]').forEach((r) => r.addEventListener('change', () => { settings.level = r.value; saveSettings(); }));
+  document.querySelectorAll('input[name="order"]').forEach((r) => r.addEventListener('change', () => { settings.order = r.value; saveSettings(); }));
+  document.querySelectorAll('input[name="seeds"]').forEach((r) => r.addEventListener('change', () => { settings.seeds = Number(r.value); saveSettings(); syncMenu(); }));
+  document.querySelectorAll('input[name="capture"]').forEach((r) => r.addEventListener('change', () => { settings.capture = r.value === 'on'; saveSettings(); syncMenu(); }));
+
   /* ================= 入力 ================= */
+  const modalOpen = () => !!document.querySelector('.modal:not([hidden])');
   document.addEventListener('keydown', (ev) => {
-    if ($('#game').hidden || !$('#result').hidden) return;
+    if (ev.key === 'Escape') {
+      if (!$('#settings').hidden) { $('#settings-close').click(); return; }
+      if (!$('#confirm').hidden) { $('#confirm-cancel').click(); return; }
+    }
+    if ($('#game').hidden || modalOpen()) return;
+    G.pointer = null;
+    if (G.mode === 'replay') {
+      if (ev.key === 'ArrowRight') { ev.preventDefault(); stopAutoplay(); stepForward(); }
+      else if (ev.key === 'ArrowLeft') { ev.preventDefault(); stopAutoplay(); jumpTo(RP.k - 1); }
+      return;
+    }
     const list = playableList();
     if (!list.length) return;
     if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') {
@@ -858,64 +1538,58 @@
     }
   });
 
-  const btnAgain = $('#btn-again');
-  const btnToMenu = $('#btn-tomenu');
   btnAgain.addEventListener('click', () => { sfx.unlock(); (G.lastStart || startCPU)(); });
+  btnReview.addEventListener('click', startReplay);
   btnToMenu.addEventListener('click', goMenu);
-  $('#btn-back').addEventListener('click', goMenu);
-  $('#btn-cpu').addEventListener('click', () => { sfx.unlock(); startCPU(); });
-  $('#btn-pvp').addEventListener('click', () => { sfx.unlock(); startPVP(); });
+  $('#btn-back').addEventListener('click', onBack);
+  hintBtn.addEventListener('click', showHint);
+  $('#btn-settings').addEventListener('click', openSettings);
+  $('#btn-settings-menu').addEventListener('click', openSettings);
+  $('#btn-resume').addEventListener('click', () => { sfx.unlock(); resumeGame(); });
+  $('#btn-cpu').addEventListener('click', async () => {
+    sfx.unlock();
+    if (loadSave()) {
+      const ok = await confirmBox('新しい対局をはじめますか？', '保存されている対局は消えます。', 'はじめる', 'やめる');
+      if (!ok) return;
+    }
+    startCPU();
+  });
+  $('#btn-pvp').addEventListener('click', async () => {
+    sfx.unlock();
+    if (loadSave()) {
+      const ok = await confirmBox('新しい対局をはじめますか？', '保存されている対局は消えます。', 'はじめる', 'やめる');
+      if (!ok) return;
+    }
+    startPVP();
+  });
   $('#btn-tut').addEventListener('click', () => { sfx.unlock(); startTutorial(); });
+  $('#btn-puzzle').addEventListener('click', () => { sfx.unlock(); openPuzzleList(); });
   $('#btn-rules').addEventListener('click', () => { showScreen('rules'); $('#rules').scrollTop = 0; });
-  $('#rules-back').addEventListener('click', goMenu);
-  $('#rules-menu').addEventListener('click', goMenu);
+  $('#btn-skins').addEventListener('click', () => { syncSkinForm(); showScreen('skins'); $('#skins').scrollTop = 0; });
+  for (const id of ['#rules-back', '#rules-menu', '#puzzles-back', '#skins-back', '#skins-done']) $(id).addEventListener('click', goMenu);
   $('#rules-tut').addEventListener('click', () => { sfx.unlock(); startTutorial(); });
   $('#tut-next').addEventListener('click', tutNext);
   $('#tut-retry').addEventListener('click', () => loadTutStep(G.tutStep));
-
-  const guideBtn = $('#btn-guide');
-  const soundBtn = $('#btn-sound');
-  function syncToggles() {
-    guideBtn.setAttribute('aria-pressed', String(settings.guide));
-    guideBtn.textContent = settings.guide ? 'ガイド オン' : 'ガイド オフ';
-    soundBtn.setAttribute('aria-pressed', String(settings.sound));
-    soundBtn.textContent = settings.sound ? '音 オン' : '音 オフ';
-  }
-  guideBtn.addEventListener('click', () => {
-    settings.guide = !settings.guide; saveSettings(); syncToggles();
-    if (!settings.guide) clearGuide(); else if (G.sel != null && canPlay(G.sel)) showGuideFor(G.sel);
-  });
-  // 全画面（対応ブラウザのみ）。全画面にしたら横向きに固定を試みる
-  const fullBtn = $('#btn-full');
-  const root = document.documentElement;
-  const canFull = !!(document.fullscreenEnabled && root.requestFullscreen);
-  fullBtn.hidden = !canFull;
-  function syncFull() { fullBtn.textContent = document.fullscreenElement ? '全画面を終了' : '全画面'; }
-  fullBtn.addEventListener('click', async () => {
-    try {
-      if (document.fullscreenElement) { await document.exitFullscreen(); return; }
-      await root.requestFullscreen({ navigationUI: 'hide' });
-      if (screen.orientation && screen.orientation.lock && matchMedia('(pointer: coarse)').matches) {
-        await screen.orientation.lock('landscape').catch(() => {});
-      }
-    } catch (e) { /* 全画面にできない環境では何もしない */ }
-  });
-  document.addEventListener('fullscreenchange', syncFull);
-  syncFull();
-  soundBtn.addEventListener('click', () => { settings.sound = !settings.sound; saveSettings(); syncToggles(); sfx.unlock(); });
-
-  function syncMenu() {
-    const lv = document.getElementById('lv-' + settings.level);
-    if (lv) lv.checked = true;
-    const od = document.getElementById('od-' + settings.order);
-    if (od) od.checked = true;
-  }
-  document.querySelectorAll('input[name="level"]').forEach((r) => r.addEventListener('change', () => { settings.level = r.value; saveSettings(); }));
-  document.querySelectorAll('input[name="order"]').forEach((r) => r.addEventListener('change', () => { settings.order = r.value; saveSettings(); }));
+  $('#pz-list').addEventListener('click', openPuzzleList);
+  $('#pz-retry').addEventListener('click', () => startPuzzle(G.pz.i));
+  $('#pz-next').addEventListener('click', () => startPuzzle(G.pz.i + 1));
+  $('#pz-hint').addEventListener('click', puzzleHint);
+  $('#rp-first').addEventListener('click', () => { stopAutoplay(); jumpTo(0); });
+  $('#rp-prev').addEventListener('click', () => { stopAutoplay(); jumpTo(RP.k - 1); });
+  $('#rp-next').addEventListener('click', () => { stopAutoplay(); stepForward(); });
+  $('#rp-last').addEventListener('click', () => { stopAutoplay(); jumpTo(G.hist.length); });
+  $('#rp-play').addEventListener('click', autoplay);
+  const graph = $('#rp-graph');
+  graph.addEventListener('pointermove', graphTip);
+  graph.addEventListener('pointerleave', () => { $('#rp-tip').hidden = true; });
+  graph.addEventListener('click', (e) => { stopAutoplay(); jumpTo(graphIndex(e)); });
 
   /* ================= 起動 ================= */
   buildBoard();
+  buildSkinScreen();
+  applySkins();
+  applySpeed();
   syncMenu();
-  syncToggles();
+  refreshMenu();
   showScreen('menu');
 })();

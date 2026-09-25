@@ -121,9 +121,14 @@ button { font: inherit; color: inherit; }
 .seg input:checked + label { background: #fff8ea; color: var(--ink); box-shadow: 0 1px 3px rgba(60,30,5,.3); }
 .seg input:focus-visible + label { outline: 3px solid var(--indigo); outline-offset: 1px; }
 .menu-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.menu-block h2 small { display: block; font-size: 12px; font-weight: 500; color: var(--ink-soft); letter-spacing: 0; margin-top: 2px; }
+.rule-note { margin: 0; font-size: 13px; color: var(--ink-soft); }
+.btn-resume { background: linear-gradient(180deg, #ffe89a, #f5c84a); box-shadow: 0 3px 0 #a87a14, 0 5px 10px rgba(60,30,5,.25), inset 0 1px 0 #fff; padding: 14px 18px; }
+.btn-resume b { font-size: 17px; }
+.btn-resume small { color: #5a3a08; }
 .menu-grid .btn { padding: 14px 8px; }
 .menu-grid .btn b { font-size: 16px; }
-@media (max-width: 520px) { .menu-grid { grid-template-columns: 1fr; } .menu-card { padding: 22px 16px; } }
+@media (max-width: 520px) { .menu-grid { grid-template-columns: 1fr 1fr; } .menu-grid .btn small { font-size: 11px; } .menu-card { padding: 22px 16px; } }
 
 /* ---------- ゲーム画面 ---------- */
 #game { display: flex; flex-direction: column; position: relative; overflow: hidden;
@@ -161,22 +166,37 @@ button { font: inherit; color: inherit; }
   content: ""; position: absolute; inset: 0; background-image: var(--weave, none); opacity: .35; mix-blend-mode: multiply; pointer-events: none;
 }
 
-/* ボード */
-.board { position: absolute; inset: 0; }
+/* ボード：木の色は着せ替えで切り替える */
+:root, .k-pine {
+  --wood-1: #edcb93; --wood-2: #e2b877; --wood-3: #d9aa66;
+  --pit-1: #a9723a; --pit-2: #cf9d5c; --pit-3: #e0b474; --pit-4: #e6be80;
+  --rim: #c98a45; --bevel: #b86f24; --pit-shade: rgba(80,40,5,.62); --pit-light: rgba(255,238,205,.55);
+}
+:root[data-board="cherry"], .k-cherry {
+  --wood-1: #dd9d74; --wood-2: #cf865e; --wood-3: #bf724c;
+  --pit-1: #86432a; --pit-2: #ab6245; --pit-3: #c07657; --pit-4: #c98463;
+  --rim: #a4532f; --bevel: #8a3a1c; --pit-shade: rgba(70,20,5,.62); --pit-light: rgba(255,215,190,.45);
+}
+:root[data-board="walnut"], .k-walnut {
+  --wood-1: #8f5e38; --wood-2: #7d4f2d; --wood-3: #6c4225;
+  --pit-1: #3e2310; --pit-2: #5a371d; --pit-3: #6c4426; --pit-4: #75502f;
+  --rim: #5a3418; --bevel: #3a200c; --pit-shade: rgba(20,8,0,.7); --pit-light: rgba(230,190,150,.3);
+}
+.board { position: absolute; inset: 0; --su: 1cqw; }
 .board.instant .stone, .board.instant .hand { transition: none !important; }
 .half {
   position: absolute; top: 0; height: 100%; width: 50%;
   background-color: var(--pine);
-  background-image: var(--grain-a, none), linear-gradient(180deg, #edcb93 0%, #e2b877 60%, #d9aa66 100%);
+  background-image: var(--grain-a, none), linear-gradient(180deg, var(--wood-1) 0%, var(--wood-2) 60%, var(--wood-3) 100%);
   background-size: cover;
   box-shadow:
-    inset 0 0 0 .35cqw #c98a45,
+    inset 0 0 0 .35cqw var(--rim),
     inset .5cqw .5cqw .6cqw rgba(255,240,210,.65),
     inset -.4cqw -.5cqw .6cqw rgba(120,70,20,.35),
     0 1.6cqw 2.2cqw rgba(30,8,0,.55);
 }
 .half.l { left: 0; border-radius: 2.2cqw 0 0 2.2cqw; }
-.half.r { right: 0; border-radius: 0 2.2cqw 2.2cqw 0; background-image: var(--grain-b, none), linear-gradient(180deg, #edcb93 0%, #e2b877 60%, #d9aa66 100%); }
+.half.r { right: 0; border-radius: 0 2.2cqw 2.2cqw 0; background-image: var(--grain-b, none), linear-gradient(180deg, var(--wood-1) 0%, var(--wood-2) 60%, var(--wood-3) 100%); }
 .band {
   position: absolute; left: 2.2%; right: 2.2%;
   background-color: var(--cream); background-image: var(--chevron, none); background-repeat: repeat-x; background-size: auto 100%;
@@ -202,12 +222,12 @@ button { font: inherit; color: inherit; }
 .pit, .store {
   position: absolute; transform: translate(-50%, -50%);
   border-radius: 999px; border: 0; padding: 0;
-  background-color: #d6a462;
-  background-image: var(--grain-a, none), linear-gradient(180deg, #a9723a 0%, #cf9d5c 30%, #e0b474 70%, #e6be80 100%);
+  background-color: var(--pit-3);
+  background-image: var(--grain-a, none), linear-gradient(180deg, var(--pit-1) 0%, var(--pit-2) 30%, var(--pit-3) 70%, var(--pit-4) 100%);
   background-size: cover;
   box-shadow:
-    inset 0 1.9cqw 1.6cqw -.4cqw rgba(80,40,5,.62),
-    inset 0 -.4cqw .6cqw rgba(255,238,205,.55),
+    inset 0 1.9cqw 1.6cqw -.4cqw var(--pit-shade),
+    inset 0 -.4cqw .6cqw var(--pit-light),
     inset .6cqw 0 .8cqw -.3cqw rgba(90,50,10,.25),
     0 0 0 .3cqw var(--bevel),
     0 0 0 .55cqw rgba(255,226,170,.55),
@@ -225,6 +245,13 @@ button { font: inherit; color: inherit; }
     0 0 2.4cqw .6cqw rgba(255,210,80,.7);
 }
 .pit.tut-target { animation: tutpulse 1.2s ease-in-out infinite; }
+.pit.armed { animation: tutpulse .9s ease-in-out infinite; }
+.pit.hinted {
+  box-shadow: inset 0 1.9cqw 1.6cqw -.4cqw var(--pit-shade), 0 0 0 .3cqw #1f4f9e, 0 0 0 .8cqw rgba(140,190,255,.95), 0 0 2.6cqw .8cqw rgba(120,180,255,.8);
+  animation: hintpulse 1.1s ease-in-out infinite;
+}
+@keyframes hintpulse { 50% { filter: brightness(1.15); } }
+.pit.rp-from { box-shadow: inset 0 1.9cqw 1.6cqw -.4cqw var(--pit-shade), 0 0 0 .3cqw #1f4f9e, 0 0 0 .7cqw rgba(140,190,255,.8); }
 @keyframes tutpulse { 50% { box-shadow: inset 0 1.9cqw 1.6cqw -.4cqw rgba(80,40,5,.62), 0 0 0 .3cqw #e08a1a, 0 0 0 1cqw rgba(255,214,90,.9), 0 0 3cqw 1cqw rgba(255,210,80,.8); } }
 .pit.tut-hi, .store.tut-hi { box-shadow: inset 0 1.9cqw 1.6cqw -.4cqw rgba(80,40,5,.62), 0 0 0 .3cqw #e08a1a, 0 0 0 .8cqw rgba(255,214,90,.9); }
 .pit.tut-hi-opp, .store.tut-hi-opp { box-shadow: inset 0 1.9cqw 1.6cqw -.4cqw rgba(80,40,5,.62), 0 0 0 .3cqw #2b5aa8, 0 0 0 .8cqw rgba(120,170,255,.8); }
@@ -264,35 +291,72 @@ button { font: inherit; color: inherit; }
 .guide-tag.extra { background: #ffd24a; }
 .guide-tag.capture { background: #ff7aa8; color: #fff; }
 
-/* ガラス玉 */
+/* 石（既定はガラス玉）。--su は石の大きさの単位 */
 .stone {
-  position: absolute; width: 3.3cqw; height: 3.3cqw; border-radius: 50%;
+  position: absolute; width: calc(3.3 * var(--su, 1cqw)); height: calc(3.3 * var(--su, 1cqw)); border-radius: 50%;
   transform: translate(-50%, -50%);
   background:
     radial-gradient(circle at 32% 27%, rgba(255,255,255,.97) 0 7%, rgba(255,255,255,0) 19%),
     radial-gradient(circle at 63% 73%, rgba(255,255,255,.55) 0 9%, rgba(255,255,255,0) 30%),
     radial-gradient(circle at 50% 45%, rgba(var(--c),.55) 0 34%, rgba(var(--c),.93) 70%, rgb(var(--d)) 100%);
-  box-shadow: .3cqw .5cqw .55cqw rgba(80,40,5,.42), inset 0 0 .3cqw rgba(255,255,255,.4);
-  transition: left .3s cubic-bezier(.3,.75,.35,1), top .3s cubic-bezier(.3,.75,.35,1);
+  box-shadow: calc(.3 * var(--su, 1cqw)) calc(.5 * var(--su, 1cqw)) calc(.55 * var(--su, 1cqw)) rgba(80,40,5,.42), inset 0 0 calc(.3 * var(--su, 1cqw)) rgba(255,255,255,.4);
+  transition: left var(--mv, .3s) cubic-bezier(.3,.75,.35,1), top var(--mv, .3s) cubic-bezier(.3,.75,.35,1);
   pointer-events: none;
 }
 .stone::after { /* 玉を通った色つきの光 */
   content: ""; position: absolute; left: 58%; top: 62%; width: 70%; height: 55%; border-radius: 50%;
   background: radial-gradient(rgba(var(--c),.55), rgba(var(--c),0) 70%);
 }
-.stone.hop { animation: hop .32s ease-out; }
+.stone.hop { animation: hop calc(var(--mv, .3s) * 1.07) ease-out; }
 @keyframes hop {
   0% { transform: translate(-50%, -50%) scale(1); }
-  45% { transform: translate(-50%, -62%) scale(1.38); box-shadow: 1cqw 1.6cqw 1cqw rgba(80,40,5,.3); }
+  45% { transform: translate(-50%, -62%) scale(1.38); }
   100% { transform: translate(-50%, -50%) scale(1); }
 }
-.stone.held { box-shadow: .8cqw 1.4cqw .9cqw rgba(60,30,5,.35); }
+.stone.held { box-shadow: calc(.8 * var(--su, 1cqw)) calc(1.4 * var(--su, 1cqw)) calc(.9 * var(--su, 1cqw)) rgba(60,30,5,.35); }
+
+/* 木の実 */
+:root[data-stone="nut"] .stone:not(.k), .stone.k-nut {
+  width: calc(3.1 * var(--su, 1cqw)); height: calc(3.5 * var(--su, 1cqw)); rotate: var(--rot);
+  border-radius: 50% 50% 48% 48% / 40% 40% 60% 60%;
+  background:
+    radial-gradient(ellipse at 34% 58%, rgba(255,236,200,.55) 0 9%, rgba(255,236,200,0) 26%),
+    radial-gradient(ellipse at 50% 62%, rgb(var(--c)) 0 52%, rgb(var(--d)) 100%);
+  box-shadow: calc(.3 * var(--su, 1cqw)) calc(.45 * var(--su, 1cqw)) calc(.45 * var(--su, 1cqw)) rgba(50,25,5,.5);
+}
+:root[data-stone="nut"] .stone:not(.k)::after, .stone.k-nut::after { /* 帽子 */
+  left: -4%; top: -4%; width: 108%; height: 42%; border-radius: 50% 50% 30% 30% / 70% 70% 30% 30%;
+  background: repeating-linear-gradient(45deg, rgba(0,0,0,.18) 0 12%, rgba(0,0,0,0) 12% 24%), linear-gradient(180deg, #8a6a3e, #5c4222);
+}
+/* 貝がら（タカラガイ） */
+:root[data-stone="shell"] .stone:not(.k), .stone.k-shell {
+  width: calc(3.7 * var(--su, 1cqw)); height: calc(2.9 * var(--su, 1cqw)); rotate: var(--rot);
+  background:
+    radial-gradient(ellipse at 38% 28%, rgba(255,255,255,.95) 0 10%, rgba(255,255,255,0) 30%),
+    radial-gradient(ellipse at 50% 50%, rgb(var(--c)) 0 50%, rgb(var(--d)) 100%);
+  box-shadow: calc(.3 * var(--su, 1cqw)) calc(.45 * var(--su, 1cqw)) calc(.45 * var(--su, 1cqw)) rgba(60,40,15,.42);
+}
+:root[data-stone="shell"] .stone:not(.k)::after, .stone.k-shell::after { /* 口の割れ目とぎざぎざ */
+  left: 16%; top: 44%; width: 68%; height: 14%; border-radius: 50%;
+  background: repeating-linear-gradient(90deg, rgba(110,80,50,.85) 0 7%, rgba(110,80,50,0) 7% 14%), linear-gradient(90deg, rgba(90,60,30,.6), rgba(90,60,30,.6));
+  background-size: 100% 100%, 100% 30%; background-position: 0 0, 0 50%; background-repeat: no-repeat;
+}
+/* 小石 */
+:root[data-stone="pebble"] .stone:not(.k), .stone.k-pebble {
+  rotate: var(--rot);
+  border-radius: 46% 54% 42% 58% / 55% 45% 55% 45%;
+  background:
+    radial-gradient(circle at 34% 30%, rgba(255,255,255,.4) 0 10%, rgba(255,255,255,0) 34%),
+    radial-gradient(circle at 50% 50%, rgb(var(--c)) 0 50%, rgb(var(--d)) 100%);
+  box-shadow: calc(.3 * var(--su, 1cqw)) calc(.45 * var(--su, 1cqw)) calc(.45 * var(--su, 1cqw)) rgba(40,30,20,.5);
+}
+:root[data-stone="pebble"] .stone:not(.k)::after, .stone.k-pebble::after { display: none; }
 
 /* 手袋カーソル */
 .hand {
   position: absolute; width: 7.6cqw; z-index: 1000; pointer-events: none;
   transform: translate(-46%, -97%);
-  transition: left .22s cubic-bezier(.3,.7,.3,1), top .22s cubic-bezier(.3,.7,.3,1), opacity .2s;
+  transition: left var(--hv, .22s) cubic-bezier(.3,.7,.3,1), top var(--hv, .22s) cubic-bezier(.3,.7,.3,1), opacity .2s;
   filter: drop-shadow(.6cqw 1.4cqw .6cqw rgba(40,20,0,.35));
 }
 .hand svg { display: block; width: 100%; height: auto; animation: bob 1.4s ease-in-out infinite; }
@@ -369,7 +433,7 @@ button { font: inherit; color: inherit; }
 .tut-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
 /* モーダル */
-.modal { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(20,8,0,.55); z-index: 50; padding: 16px; }
+.modal { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(20,8,0,.55); z-index: 50; padding: 16px; }
 .modal-card { width: min(420px, 100%); padding: 26px 24px 22px; text-align: center; display: grid; gap: 12px; animation: modalin .35s cubic-bezier(.2,1.3,.4,1); }
 @keyframes modalin { from { transform: scale(.85); opacity: 0; } }
 .result-kicker { margin: 0; font-size: 13px; font-weight: 900; letter-spacing: .14em; color: var(--ink-soft); }
@@ -403,7 +467,7 @@ button { font: inherit; color: inherit; }
     padding: 5px 12px; border-radius: 999px; background: rgba(20,8,0,.6);
     color: rgba(255,240,215,.92); font-size: 12px; font-weight: 700; text-align: center;
   }
-  #game:has(#tut:not([hidden])) .rotate-hint { display: none; }
+  #game:has(.tut:not([hidden])) .rotate-hint { display: none; }
 }
 
 /* スマホ横向き：ボードを画面いっぱいに */
@@ -439,4 +503,98 @@ button { font: inherit; color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   .hand svg, .guide, .pit.tut-target { animation: none; }
   .stone.hop { animation: none; }
+}
+
+/* ---------- ヒントボタン ---------- */
+.chip-hint { background: rgba(120,180,255,.22); box-shadow: inset 0 0 0 1.5px rgba(160,200,255,.6); }
+.chip-hint:hover { background: rgba(120,180,255,.34); }
+.chip:disabled { opacity: .45; cursor: default; }
+.btn:disabled { opacity: .45; cursor: default; filter: none; }
+
+/* ---------- 確認・設定 ---------- */
+.confirm-title { font-family: var(--body) !important; font-weight: 900 !important; font-size: 22px !important; }
+.confirm-body { margin: 0; line-height: 1.7; color: var(--ink-soft); }
+.settings-card { width: min(480px, 100%); text-align: left; max-height: calc(100dvh - 32px); overflow-y: auto; }
+.settings-card .confirm-title { text-align: center; }
+.set-row { display: grid; gap: 6px; padding: 10px 0; border-top: 1px solid rgba(107,74,42,.2); }
+.set-label { font-weight: 900; font-size: 15px; display: grid; gap: 2px; }
+.set-label small { font-weight: 500; font-size: 12px; color: var(--ink-soft); }
+
+/* ---------- パズル ---------- */
+.pz-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.pz-card {
+  appearance: none; border: 0; cursor: pointer; text-align: left; font: inherit; color: var(--ink);
+  display: grid; gap: 4px; padding: 14px 16px; border-radius: 14px;
+  background: linear-gradient(180deg, #fff6e2, #f0dcb4);
+  box-shadow: 0 3px 0 #b27a3c, 0 5px 10px rgba(60,30,5,.2), inset 0 1px 0 #fff;
+}
+.pz-card:hover { filter: brightness(1.04); }
+.pz-card:active { transform: translateY(2px); box-shadow: 0 1px 0 #b27a3c; }
+.pz-no { font-size: 12px; font-weight: 900; letter-spacing: .1em; color: var(--indigo); }
+.pz-stars { font-size: 13px; color: #c98a1a; letter-spacing: .1em; }
+.pz-name { font-size: 17px; font-weight: 900; }
+.pz-goal-s { font-size: 13px; color: var(--ink-soft); line-height: 1.5; }
+.pz-done { display: none; justify-self: start; margin-top: 2px; font-size: 12px; font-weight: 900; color: #fff; background: #2f7d4a; padding: 2px 10px; border-radius: 999px; }
+.pz-card.done .pz-done { display: inline-block; }
+.pz-card.done .pz-done::before { content: "✓ "; }
+.pz-goal { margin: 0; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.pz-goal b { font-size: 12px; font-weight: 900; color: #fff; background: var(--indigo); padding: 1px 8px; border-radius: 999px; }
+.pz-goal span { font-weight: 900; }
+.pz-now { font-size: 14px !important; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+
+/* ---------- 振り返り ---------- */
+.rp-eval { font-weight: 900; }
+.rp-eval.g-best::before, .rp-eval.g-only::before { content: "◎ "; color: #2f7d4a; }
+.rp-eval.g-good::before { content: "○ "; color: #2b5aa8; }
+.rp-eval.g-dubious::before { content: "△ "; color: #b7791f; }
+.rp-eval.g-bad::before { content: "✕ "; color: #b3261e; }
+.rp-summary { font-size: 13px !important; color: var(--ink-soft); }
+.linkish { appearance: none; border: 0; background: none; padding: 0 0 0 8px; font: inherit; font-weight: 900; color: var(--indigo); text-decoration: underline; cursor: pointer; }
+.rp-chart { margin: 6px 0 0; display: grid; gap: 4px; }
+.rp-chart figcaption { font-size: 12px; font-weight: 900; color: var(--ink-soft); }
+.rp-graph-wrap { position: relative; max-width: 460px; }
+#rp-graph { display: block; width: 100%; height: auto; cursor: pointer; touch-action: none; }
+#rp-graph .g-grid { stroke: rgba(107,74,42,.18); stroke-width: 1; }
+#rp-graph .g-zero { stroke: rgba(59,36,16,.55); stroke-width: 1; }
+#rp-graph .g-lab { font-size: 9px; fill: var(--ink-soft); font-family: var(--body); font-weight: 700; }
+#rp-graph .g-line { fill: none; stroke: var(--indigo); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+#rp-graph .g-cursor { stroke: rgba(59,36,16,.35); stroke-width: 1; stroke-dasharray: 3 3; }
+#rp-graph .g-now { fill: var(--indigo); stroke: var(--paper); stroke-width: 2; }
+#rp-graph .g-badpt { fill: #b3261e; stroke: var(--paper); stroke-width: 1.5; }
+.rp-tip { position: absolute; top: -6px; transform: translate(-50%, -100%); white-space: nowrap; pointer-events: none;
+  background: #3b2410; color: #fff8ea; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 8px; }
+.rp-controls .btn { min-width: 48px; padding: 10px 12px; }
+
+/* ---------- 着せ替え ---------- */
+.skin-preview { display: grid; place-items: center; }
+.sp-rug { padding: 18px 26px; border-radius: 6px; background-color: var(--rug); background-image: var(--rug-field, none); background-size: 48px 48px; box-shadow: inset 0 0 0 6px rgba(0,0,0,.25); }
+.sp-board { padding: 14px 20px; border-radius: 14px; background-image: var(--grain-a, none), linear-gradient(180deg, var(--wood-1), var(--wood-3)); background-size: cover; box-shadow: inset 0 0 0 3px var(--rim), 0 8px 16px rgba(0,0,0,.35); }
+.sp-pit { --su: 11px; width: 190px; height: 74px; border-radius: 999px; display: flex; align-items: center; justify-content: center; gap: 4px;
+  background-image: var(--grain-a, none), linear-gradient(180deg, var(--pit-1), var(--pit-3) 60%, var(--pit-4)); background-size: cover;
+  box-shadow: inset 0 14px 12px -4px var(--pit-shade), 0 0 0 3px var(--bevel); }
+.sp-pit .stone, .sw .stone { position: relative; transform: none; transition: none; flex: none; }
+.skin-opts { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.skin-opts input { position: absolute; opacity: 0; pointer-events: none; }
+.skin-opts label {
+  display: grid; justify-items: center; gap: 8px; padding: 12px 10px; border-radius: 14px; cursor: pointer;
+  font-weight: 700; font-size: 14px; text-align: center;
+  background: rgba(255,248,232,.6); box-shadow: inset 0 0 0 2px rgba(184,111,36,.3);
+}
+.skin-opts input:checked + label { background: #fff8ea; box-shadow: inset 0 0 0 3px var(--indigo), 0 2px 6px rgba(60,30,5,.2); }
+.skin-opts input:checked + label::after { content: "選択中"; font-size: 11px; font-weight: 900; color: #fff; background: var(--indigo); padding: 1px 8px; border-radius: 999px; }
+.skin-opts input:focus-visible + label { outline: 3px solid var(--focus); outline-offset: 2px; }
+.sw { width: 100%; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 4px; }
+.sw-stone { --su: 10px; background: linear-gradient(180deg, #cf9d5c, #e6be80); box-shadow: inset 0 8px 8px -4px rgba(80,40,5,.5); }
+.sw-board { background-image: var(--grain-a, none), linear-gradient(180deg, var(--wood-1), var(--wood-3)); background-size: cover; box-shadow: inset 0 0 0 3px var(--rim); }
+.sw-rug { background-size: 32px 32px; box-shadow: inset 0 0 0 3px rgba(0,0,0,.25); }
+/* 振り返り：広い画面では説明とグラフを左右に並べてボードを大きく保つ */
+@media (min-width: 760px) {
+  #rp-panel .tut-text { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 400px); column-gap: 24px; align-items: start; }
+  #rp-panel .tut-text > :not(.rp-chart) { grid-column: 1; }
+  #rp-panel .rp-chart { grid-column: 2; grid-row: 1 / span 6; margin: 0; }
+}
+@media (orientation: landscape) and (max-height: 540px) {
+  #rp-panel .tut-text { display: grid; grid-template-columns: 1fr; }
+  #rp-panel .rp-chart { grid-column: 1; grid-row: auto; }
+  .rp-controls .btn { min-width: 0; padding: 8px 6px; flex: 1; }
 }

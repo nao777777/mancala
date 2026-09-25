@@ -26,7 +26,7 @@
         const land = E.predictLanding(s, m);
         let k = 0;
         if (land === store) k = 100;
-        else if (E.sideOf(land) === p && s.pits[land] === 0 && s.pits[m] < 13 && s.pits[E.opposite(land)] > 0) {
+        else if (!(s.rules && s.rules.capture === false) && E.sideOf(land) === p && s.pits[land] === 0 && s.pits[m] < 13 && s.pits[E.opposite(land)] > 0) {
           k = 50 + s.pits[E.opposite(land)];
         }
         return { m, k: k + (p === 0 ? m : m - 7) * 0.1 };

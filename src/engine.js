@@ -21,13 +21,19 @@
     const pits = new Array(14).fill(seeds);
     pits[6] = 0;
     pits[13] = 0;
-    return { pits, turn: o.first || 0, over: false, winner: null };
+    return { pits, turn: o.first || 0, over: false, winner: null, rules: normRules(o) };
   }
 
-  function fromPits(pits, turn) {
-    if (!Array.isArray(pits) || pits.length !== 14) throw new Error('pits must have 14 entries');
-    return { pits: pits.slice(), turn: turn || 0, over: false, winner: null };
+  // ルール設定：capture=false で横取りなし（石の数は createState の seeds）
+  function normRules(o) {
+    return { capture: !(o && o.capture === false) };
   }
+
+  function fromPits(pits, turn, rules) {
+    if (!Array.isArray(pits) || pits.length !== 14) throw new Error('pits must have 14 entries');
+    return { pits: pits.slice(), turn: turn || 0, over: false, winner: null, rules: normRules(rules) };
+  }
+  const captureOn = (s) => !(s.rules && s.rules.capture === false);
 
   const sideSum = (pits, p) => pitsOf(p).reduce((a, i) => a + pits[i], 0);
   const total = (pits) => pits.reduce((a, b) => a + b, 0);
@@ -88,7 +94,7 @@
 
     let extraTurn = landing === myStore;
     let capture = null;
-    if (!extraTurn && sideOf(landing) === p && pits[landing] === 1) {
+    if (captureOn(s) && !extraTurn && sideOf(landing) === p && pits[landing] === 1) {
       const opp = opposite(landing);
       if (pits[opp] > 0) {
         capture = { player: p, pit: landing, opposite: opp, taken: pits[opp], count: pits[opp] + 1, store: myStore };
@@ -121,6 +127,7 @@
       turn: over ? p : extraTurn ? p : 1 - p,
       over,
       winner: over ? winnerOf(pits) : null,
+      rules: s.rules || normRules(),
     };
     if (ev && over) ev.push({ type: 'end', winner: state.winner, score: [pits[6], pits[13]] });
     return { state, events: ev, extraTurn, capture, gameOver: over, landing };

@@ -2,7 +2,7 @@
 <link rel="icon" type="image/png" sizes="64x64" href="ICON64">
 <link rel="apple-touch-icon" sizes="180x180" href="ICON180">
 <meta name="apple-mobile-web-app-title" content="マンカラ">
-<meta name="description" content="木のボードとガラス玉で遊ぶマンカラ（カラハ式）。CPU対戦・2人対戦・チュートリアル付き。">
+<meta name="description" content="木のボードとガラス玉で遊ぶマンカラ（カラハ式）。CPU対戦・2人対戦・パズル・振り返り・着せ替え付き。">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Maru+Gothic:wght@500;700;900&display=swap">
@@ -21,6 +21,8 @@
         <h1>マンカラ</h1>
         <p class="lede">石をまいて、ゴールをめざす。世界でいちばん古い遊びのひとつです。</p>
       </div>
+
+      <button class="btn btn-resume" id="btn-resume" type="button" hidden><b>続きから遊ぶ</b><small id="resume-info"></small></button>
 
       <div class="menu-block">
         <h2>CPUと対戦</h2>
@@ -43,10 +45,34 @@
         <button class="btn btn-main" id="btn-cpu" type="button">CPUと対戦をはじめる</button>
       </div>
 
+      <div class="menu-block">
+        <h2>ルール設定<small>CPU対戦・ふたりで対戦に使われます</small></h2>
+        <div class="opt-row">
+          <span class="opt-label" id="lbl-seeds">石の数</span>
+          <div class="seg" role="radiogroup" aria-labelledby="lbl-seeds">
+            <input type="radio" name="seeds" id="rs-3" value="3"><label for="rs-3">3個</label>
+            <input type="radio" name="seeds" id="rs-4" value="4" checked><label for="rs-4">4個</label>
+            <input type="radio" name="seeds" id="rs-5" value="5"><label for="rs-5">5個</label>
+            <input type="radio" name="seeds" id="rs-6" value="6"><label for="rs-6">6個</label>
+          </div>
+        </div>
+        <div class="opt-row">
+          <span class="opt-label" id="lbl-cap">横取り</span>
+          <div class="seg" role="radiogroup" aria-labelledby="lbl-cap">
+            <input type="radio" name="capture" id="rc-on" value="on" checked><label for="rc-on">あり</label>
+            <input type="radio" name="capture" id="rc-off" value="off"><label for="rc-off">なし</label>
+          </div>
+        </div>
+        <p class="rule-note" id="rule-note">各穴に4個（合計48個）・横取りあり（標準ルール）</p>
+      </div>
+
       <div class="menu-grid">
         <button class="btn" id="btn-pvp" type="button"><b>ふたりで対戦</b><small>1台の端末で交代しながら</small></button>
+        <button class="btn" id="btn-puzzle" type="button"><b>パズル</b><small id="puzzle-progress">10問のチャレンジ</small></button>
         <button class="btn" id="btn-tut" type="button"><b>チュートリアル</b><small>6ステップで遊び方を体験</small></button>
         <button class="btn" id="btn-rules" type="button"><b>ルール説明</b><small>配り方・もう一回・横取り</small></button>
+        <button class="btn" id="btn-skins" type="button"><b>着せ替え</b><small>石・ボード・敷物を選ぶ</small></button>
+        <button class="btn" id="btn-settings-menu" type="button"><b>設定</b><small>ガイド・音・速さ・操作</small></button>
       </div>
     </div>
   </section>
@@ -57,9 +83,8 @@
       <button class="chip" id="btn-back" type="button">← メニュー</button>
       <p class="status" id="status" aria-live="polite">あなたの番</p>
       <div class="toggles">
-        <button class="chip" id="btn-guide" type="button" aria-pressed="true">ガイド</button>
-        <button class="chip" id="btn-sound" type="button" aria-pressed="true">音</button>
-        <button class="chip" id="btn-full" type="button" hidden>全画面</button>
+        <button class="chip chip-hint" id="btn-hint" type="button" hidden>ヒント</button>
+        <button class="chip" id="btn-settings" type="button">設定</button>
       </div>
     </header>
 
@@ -84,6 +109,7 @@
       <p class="hint" id="hint">穴を選んでクリック／タップで配る　·　←→ と Enter でも操作できます</p>
     </div>
 
+    <!-- チュートリアル -->
     <div class="tut plank" id="tut" hidden>
       <div class="tut-text">
         <p class="tut-step" id="tut-step">1 / 6</p>
@@ -97,17 +123,102 @@
       </div>
     </div>
 
-    <div class="modal" id="result" hidden>
-      <div class="modal-card plank" role="dialog" aria-modal="true" aria-labelledby="result-title">
-        <p class="result-kicker" id="result-kicker">ゲーム終了</p>
-        <h2 id="result-title">あなたの勝ち！</h2>
-        <div class="scoreline" id="scoreline"></div>
-        <div class="modal-actions" id="result-actions">
-          <button class="btn btn-main" id="btn-again" type="button">もう一度</button>
-          <button class="btn" id="btn-tomenu" type="button">メニューへ</button>
-        </div>
+    <!-- パズル -->
+    <div class="tut plank" id="pz-panel" hidden>
+      <div class="tut-text">
+        <p class="tut-step" id="pz-step">パズル 1 / 10</p>
+        <h2 id="pz-title"></h2>
+        <p id="pz-text"></p>
+        <p class="pz-goal"><b>目標</b><span id="pz-goal"></span></p>
+        <p class="pz-now" id="pz-now"></p>
+        <p id="pz-msg" class="tut-after" hidden></p>
+      </div>
+      <div class="tut-actions">
+        <button class="btn btn-ghost" id="pz-list" type="button">一覧へ</button>
+        <button class="btn btn-ghost" id="pz-hint" type="button">ヒント</button>
+        <button class="btn btn-ghost" id="pz-retry" type="button">やり直す</button>
+        <button class="btn btn-main" id="pz-next" type="button" hidden>次のパズルへ</button>
       </div>
     </div>
+
+    <!-- 振り返り -->
+    <div class="tut plank" id="rp-panel" hidden>
+      <div class="tut-text">
+        <p class="tut-step" id="rp-count">0 / 0 手目</p>
+        <h2 id="rp-title">対局の振り返り</h2>
+        <p id="rp-move"></p>
+        <p id="rp-eval" class="rp-eval"></p>
+        <p id="rp-summary" class="rp-summary"></p>
+        <figure class="rp-chart">
+          <figcaption id="rp-chart-title">ゴールの差の移り変わり</figcaption>
+          <div class="rp-graph-wrap">
+            <svg id="rp-graph" viewBox="0 0 320 110" role="img" aria-labelledby="rp-chart-title"></svg>
+            <div class="rp-tip" id="rp-tip" hidden></div>
+          </div>
+        </figure>
+      </div>
+      <div class="tut-actions rp-controls">
+        <button class="btn btn-ghost" id="rp-first" type="button" aria-label="最初へ">⏮</button>
+        <button class="btn btn-ghost" id="rp-prev" type="button" aria-label="1手戻る">◀</button>
+        <button class="btn btn-main" id="rp-play" type="button">自動再生</button>
+        <button class="btn btn-ghost" id="rp-next" type="button" aria-label="1手進む">▶</button>
+        <button class="btn btn-ghost" id="rp-last" type="button" aria-label="最後へ">⏭</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== パズル一覧 ===== -->
+  <section id="puzzles" class="screen scene" hidden>
+    <article class="rules plank">
+      <header class="rules-head">
+        <button class="chip chip-dark" id="puzzles-back" type="button">← メニュー</button>
+        <h1>パズル</h1>
+        <p class="lede">相手は動きません。自分の番のうちに目標を達成しましょう。困ったら「ヒント」で次の一手がわかります。</p>
+      </header>
+      <div class="pz-grid" id="pz-grid"></div>
+    </article>
+  </section>
+
+  <!-- ===== 着せ替え ===== -->
+  <section id="skins" class="screen scene" hidden>
+    <article class="rules plank">
+      <header class="rules-head">
+        <button class="chip chip-dark" id="skins-back" type="button">← メニュー</button>
+        <h1>着せ替え</h1>
+        <p class="lede">石・ボード・敷物を選ぶと、すぐに反映されます。</p>
+      </header>
+      <div class="skin-preview" id="skin-preview" aria-hidden="true">
+        <div class="sp-rug"><div class="sp-board"><div class="sp-pit" id="sp-pit"></div></div></div>
+      </div>
+      <section>
+        <h2>石</h2>
+        <div class="skin-opts" role="radiogroup" aria-label="石">
+          <input type="radio" name="skinStone" id="ss-glass" value="glass"><label for="ss-glass"><span class="sw sw-stone" data-kind="glass"></span>ガラス玉</label>
+          <input type="radio" name="skinStone" id="ss-nut" value="nut"><label for="ss-nut"><span class="sw sw-stone" data-kind="nut"></span>木の実</label>
+          <input type="radio" name="skinStone" id="ss-shell" value="shell"><label for="ss-shell"><span class="sw sw-stone" data-kind="shell"></span>貝がら</label>
+          <input type="radio" name="skinStone" id="ss-pebble" value="pebble"><label for="ss-pebble"><span class="sw sw-stone" data-kind="pebble"></span>小石</label>
+        </div>
+      </section>
+      <section>
+        <h2>ボード</h2>
+        <div class="skin-opts" role="radiogroup" aria-label="ボード">
+          <input type="radio" name="skinBoard" id="sb-pine" value="pine"><label for="sb-pine"><span class="sw sw-board" data-kind="pine"></span>松（明るい木）</label>
+          <input type="radio" name="skinBoard" id="sb-cherry" value="cherry"><label for="sb-cherry"><span class="sw sw-board" data-kind="cherry"></span>桜（赤みの木）</label>
+          <input type="radio" name="skinBoard" id="sb-walnut" value="walnut"><label for="sb-walnut"><span class="sw sw-board" data-kind="walnut"></span>くるみ（こげ茶）</label>
+        </div>
+      </section>
+      <section>
+        <h2>敷物</h2>
+        <div class="skin-opts" role="radiogroup" aria-label="敷物">
+          <input type="radio" name="skinRug" id="sr-red" value="red"><label for="sr-red"><span class="sw sw-rug" data-kind="red"></span>赤いキリム</label>
+          <input type="radio" name="skinRug" id="sr-blue" value="blue"><label for="sr-blue"><span class="sw sw-rug" data-kind="blue"></span>藍のキリム</label>
+          <input type="radio" name="skinRug" id="sr-green" value="green"><label for="sr-green"><span class="sw sw-rug" data-kind="green"></span>緑のフェルト</label>
+        </div>
+      </section>
+      <div class="rules-actions">
+        <button class="btn btn-main" id="skins-done" type="button">メニューへ</button>
+      </div>
+    </article>
   </section>
 
   <!-- ===== ルール説明 ===== -->
@@ -166,6 +277,7 @@
       <section>
         <h2>終わりと勝ち負け</h2>
         <p>どちらかの陣地の6つの穴がすべて空になったら、ゲーム終了です。残っている石は、それぞれの陣地の持ち主のゴールに入ります。ゴールの石が多い方の勝ち。同じ数なら引き分けです。</p>
+        <p>メニューの「ルール設定」で、はじめの石の数（各穴3〜6個）と横取りのあり／なしを変えられます。標準は各穴4個・横取りありです。</p>
       </section>
 
       <section>
@@ -206,13 +318,78 @@
       </div>
     </article>
   </section>
+  <!-- ===== モーダル ===== -->
+  <div class="modal" id="result" hidden>
+    <div class="modal-card plank" role="dialog" aria-modal="true" aria-labelledby="result-title">
+      <p class="result-kicker" id="result-kicker">ゲーム終了</p>
+      <h2 id="result-title">あなたの勝ち！</h2>
+      <div class="scoreline" id="scoreline"></div>
+      <div class="modal-actions" id="result-actions">
+        <button class="btn btn-main" id="btn-again" type="button">もう一度</button>
+        <button class="btn" id="btn-review" type="button">振り返る</button>
+        <button class="btn" id="btn-tomenu" type="button">メニューへ</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="confirm" hidden>
+    <div class="modal-card plank" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-body">
+      <h2 id="confirm-title" class="confirm-title"></h2>
+      <p id="confirm-body" class="confirm-body"></p>
+      <div class="modal-actions">
+        <button class="btn" id="confirm-cancel" type="button">続ける</button>
+        <button class="btn btn-main" id="confirm-ok" type="button">メニューへ</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="settings" hidden>
+    <div class="modal-card plank settings-card" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <h2 id="settings-title" class="confirm-title">設定</h2>
+      <div class="set-row">
+        <span class="set-label" id="st-guide">ガイド<small>最後の1個が入る場所を光らせる</small></span>
+        <div class="seg" role="radiogroup" aria-labelledby="st-guide">
+          <input type="radio" name="guide" id="sg-on" value="on" data-setting="guide"><label for="sg-on">オン</label>
+          <input type="radio" name="guide" id="sg-off" value="off" data-setting="guide"><label for="sg-off">オフ</label>
+        </div>
+      </div>
+      <div class="set-row">
+        <span class="set-label" id="st-sound">音</span>
+        <div class="seg" role="radiogroup" aria-labelledby="st-sound">
+          <input type="radio" name="sound" id="sd-on" value="on" data-setting="sound"><label for="sd-on">オン</label>
+          <input type="radio" name="sound" id="sd-off" value="off" data-setting="sound"><label for="sd-off">オフ</label>
+        </div>
+      </div>
+      <div class="set-row">
+        <span class="set-label" id="st-speed">石を配る速さ</span>
+        <div class="seg" role="radiogroup" aria-labelledby="st-speed">
+          <input type="radio" name="speed" id="sp-normal" value="normal" data-setting="speed"><label for="sp-normal">ふつう</label>
+          <input type="radio" name="speed" id="sp-fast" value="fast" data-setting="speed"><label for="sp-fast">はやい</label>
+        </div>
+      </div>
+      <div class="set-row">
+        <span class="set-label" id="st-tap">スマホでの配り方<small>2回タップ：1回目で選んでガイドを見て、2回目で配る</small></span>
+        <div class="seg" role="radiogroup" aria-labelledby="st-tap">
+          <input type="radio" name="tap" id="tp-double" value="double" data-setting="tap"><label for="tp-double">2回タップ</label>
+          <input type="radio" name="tap" id="tp-single" value="single" data-setting="tap"><label for="tp-single">1回タップ</label>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" id="btn-full" type="button" hidden>全画面にする</button>
+        <button class="btn btn-main" id="settings-close" type="button">閉じる</button>
+      </div>
+    </div>
+  </div>
 </div>
 
-<script>
+<script id="src-engine">
 /*ENGINE*/
 </script>
-<script>
+<script id="src-ai">
 /*AI*/
+</script>
+<script id="src-puzzles">
+/*PUZZLES*/
 </script>
 <script>
 /*APP*/

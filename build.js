@@ -9,6 +9,7 @@ const out = r('template.html')
   .replace('/*STYLE*/', () => r('style.css'))
   .replace('/*ENGINE*/', () => r('engine.js'))
   .replace('/*AI*/', () => r('ai.js'))
+  .replace('/*PUZZLES*/', () => r('puzzles.js'))
   .replace('/*APP*/', () => r('app.js'));
 fs.mkdirSync(path.join(__dirname, 'dist'), { recursive: true });
 fs.writeFileSync(path.join(__dirname, 'dist', 'mancala.html'), out);

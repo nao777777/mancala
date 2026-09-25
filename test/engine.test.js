@@ -210,3 +210,39 @@ test('強さの順：むずかしい > ふつう > やさしい', () => {
   for (let g = 0; g < 10; g++) if (playMatch('hard', 'normal', g % 2, rng) === 0) hn++;
   assert.ok(hn >= 6, 'hard vs normal: ' + hn);
 });
+
+test('ルール設定：石の数を変えられる', () => {
+  for (const seeds of [3, 4, 5, 6]) {
+    let s = E.createState({ seeds });
+    assert.equal(E.total(s.pits), seeds * 12);
+    const rng = mulberry(seeds);
+    while (!s.over) {
+      const moves = E.legalMoves(s);
+      s = E.applyMove(s, moves[Math.floor(rng() * moves.length)]).state;
+      assert.equal(E.total(s.pits), seeds * 12);
+    }
+  }
+});
+
+test('ルール設定：横取りなし', () => {
+  const pits = [3, 2, 0, 0, 4, 1, 10, 2, 3, 6, 4, 1, 2, 10];
+  const r = E.applyMove(E.fromPits(pits, 0, { capture: false }), 1);
+  assert.equal(r.capture, null);
+  assert.equal(r.state.pits[3], 1);
+  assert.equal(r.state.pits[9], 6);
+  assert.equal(r.state.rules.capture, false);
+  // 次の手にもルールが引き継がれる
+  const r2 = E.applyMove(r.state, E.legalMoves(r.state)[0]);
+  assert.equal(r2.state.rules.capture, false);
+  // 既定は横取りあり
+  assert.ok(E.applyMove(E.fromPits(pits, 0), 1).capture);
+  assert.equal(E.createState().rules.capture, true);
+});
+
+test('ルール設定：横取りなしでもAIは合法手を返す', () => {
+  let s = E.createState({ seeds: 6, capture: false });
+  for (const level of ['easy', 'normal', 'hard']) {
+    const m = AI.chooseMove(s, level, { timeMs: 40 });
+    assert.ok(E.isLegal(s, m));
+  }
+});
