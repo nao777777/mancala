@@ -209,7 +209,7 @@ self.onmessage = function (e) {
   var d = e.data, r;
   try {
     if (d.kind === 'move') r = MancalaAI.chooseMove(d.state, d.level, { timeMs: d.timeMs });
-    else r = d.items.map(function (it) { return MancalaAI.scoreRoot(it, d.depth); });
+    else r = d.items.map(function (it) { return MancalaAI.analyzePosition(it); });
     self.postMessage({ id: d.id, r: r });
   } catch (err) { self.postMessage({ id: d.id, err: String(err) }); }
 };`;
@@ -242,7 +242,7 @@ self.onmessage = function (e) {
     }
     return {
       move: (state, level, timeMs) => run({ kind: 'move', state, level, timeMs }, () => AI.chooseMove(state, level, { timeMs })),
-      analyze: (items, depth) => run({ kind: 'analyze', items, depth }, () => items.map((it) => AI.scoreRoot(it, depth))),
+      analyze: (items) => run({ kind: 'analyze', items }, () => items.map((it) => AI.analyzePosition(it))),
     };
   })();
 
@@ -1168,41 +1168,32 @@ self.onmessage = function (e) {
     drawGraph();
     // 各手を深く読み、最善手との差を出す（Workerで計算）
     const id = (RP.id = (RP.id || 0) + 1);
-    brain.analyze(hist.map((h) => E.fromPits(h.pits, h.turn, G.rules)), 8).then((all) => {
+    brain.analyze(RP.states.slice(0, hist.length)).then((all) => {
       if (RP.id !== id || G.mode !== 'replay') return;
       RP.analysis = all.map((scored, k) => {
-        const mv = hist[k].move;
-        const best = scored[0];
-        const mine = scored.find((x) => x.m === mv) || best;
-        const loss = Math.max(0, best.v - mine.v);
-        return { best: best.m, loss, grade: grade(loss, scored.length) };
+        const g = AI.gradeMove(RP.states[k], scored, hist[k].move);
+        return { best: g.best, loss: g.loss, grade: { key: g.key, text: g.text } };
       });
       writeSummary();
       showReplayMove();
       drawGraph();
     });
   }
-  function grade(loss, n) {
-    if (n <= 1) return { key: 'only', text: 'この手しかない' };
-    if (loss < 0.5) return { key: 'best', text: '最善手' };
-    if (loss < 2) return { key: 'good', text: 'まずまず' };
-    if (loss < 5) return { key: 'dubious', text: '疑問手' };
-    return { key: 'bad', text: '悪手' };
-  }
+  const BAD_KEYS = ['bad', 'missWin', 'lose'];
   function writeSummary() {
     const A = RP.analysis;
     const who = G.replayOf === 'cpu' ? [0] : [0, 1];
     const parts = who.map((p) => {
       const ks = G.hist.map((h, k) => k).filter((k) => G.hist[k].turn === p);
       const best = ks.filter((k) => ['best', 'only'].includes(A[k].grade.key)).length;
-      const bad = ks.filter((k) => A[k].grade.key === 'bad').length;
+      const bad = ks.filter((k) => BAD_KEYS.includes(A[k].grade.key)).length;
       return `${RP.names[p]}：最善手 ${best} / ${ks.length}手・悪手 ${bad}回`;
     });
     let worst = -1, wl = 0;
-    A.forEach((a, k) => { if (who.includes(G.hist[k].turn) && a.loss > wl) { wl = a.loss; worst = k; } });
+    A.forEach((a, k) => { if (who.includes(G.hist[k].turn) && !['best', 'only'].includes(a.grade.key) && a.loss > wl) { wl = a.loss; worst = k; } });
     const s = $('#rp-summary');
     s.textContent = parts.join('　');
-    if (worst >= 0 && wl >= 2) {
+    if (worst >= 0 && wl >= 2.5) {
       const b = el('button', 'linkish', s);
       b.type = 'button';
       b.textContent = `いちばん差がついた手（${worst + 1}手目）を見る`;
@@ -1266,7 +1257,7 @@ self.onmessage = function (e) {
         const a = RP.analysis[k];
         ev.classList.add('g-' + a.grade.key);
         let t = `評価：${a.grade.text}`;
-        if (a.best !== h.move && a.grade.key !== 'best') {
+        if (a.best !== h.move && !['best', 'only'].includes(a.grade.key)) {
           const rb = E.applyMove(RP.states[k], a.best, false);
           const bw = rb.gameOver ? 'ゲーム終了' : rb.extraTurn ? 'もう一回' : rb.capture ? `横取り ${rb.capture.count}個` : '';
           t += `　おすすめは${pitShort(a.best)}の穴${bw ? '（' + bw + '）' : ''}`;
@@ -1294,7 +1285,7 @@ self.onmessage = function (e) {
     let marks = '';
     if (RP.analysis) {
       RP.analysis.forEach((a, k) => {
-        if (a.grade.key === 'bad') marks += `<circle cx="${x(k + 1).toFixed(1)}" cy="${y(d[k + 1]).toFixed(1)}" r="3.2" class="g-badpt"/>`;
+        if (BAD_KEYS.includes(a.grade.key)) marks += `<circle cx="${x(k + 1).toFixed(1)}" cy="${y(d[k + 1]).toFixed(1)}" r="3.2" class="g-badpt"/>`;
       });
     }
     svg.innerHTML = `
@@ -1501,7 +1492,7 @@ self.onmessage = function (e) {
     pick('rs-' + settings.seeds);
     pick(settings.capture ? 'rc-on' : 'rc-off');
     $('#rule-note').textContent = rulesText(rulesNow()).replace('各穴' + settings.seeds + '個', `各穴${settings.seeds}個（合計${settings.seeds * 12}個）`) +
-      (settings.seeds === 4 && settings.capture ? '（標準ルール）' : '');
+      (settings.seeds === 4 && settings.capture ? '・標準' : '');
   }
   document.querySelectorAll('input[name="level"]').forEach((r) => r.addEventListener('change', () => { settings.level = r.value; saveSettings(); }));
   document.querySelectorAll('input[name="order"]').forEach((r) => r.addEventListener('change', () => { settings.order = r.value; saveSettings(); }));

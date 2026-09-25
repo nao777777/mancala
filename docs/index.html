@@ -139,13 +139,37 @@ button { font: inherit; color: inherit; }
 .seg input:focus-visible + label { outline: 3px solid var(--indigo); outline-offset: 1px; }
 .menu-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .menu-block h2 small { display: block; font-size: 12px; font-weight: 500; color: var(--ink-soft); letter-spacing: 0; margin-top: 2px; }
-.rule-note { margin: 0; font-size: 13px; color: var(--ink-soft); }
+/* ルール設定（折りたたみ） */
+.rules-fold { padding-block: 12px; }
+.rules-fold summary { list-style: none; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; cursor: pointer; }
+.rules-fold summary::-webkit-details-marker { display: none; }
+.rf-title { font-size: 16px; font-weight: 900; }
+.rf-now { font-size: 13px; font-weight: 700; color: var(--ink-soft); flex: 1; min-width: 0; }
+.rf-open { font-size: 13px; font-weight: 900; color: var(--indigo); padding: 3px 10px; border-radius: 999px; box-shadow: inset 0 0 0 1.5px rgba(43,90,168,.45); }
+.rf-open::after { content: " ▾"; }
+.rules-fold[open] .rf-open { font-size: 0; }
+.rules-fold[open] .rf-open::before { content: "閉じる"; font-size: 13px; }
+.rules-fold[open] .rf-open::after { content: " ▴"; font-size: 13px; }
+.rf-help { margin: 0; font-size: 12px; color: var(--ink-soft); }
+.rules-fold[open] { display: grid; gap: 12px; }
 .btn-resume { background: linear-gradient(180deg, #ffe89a, #f5c84a); box-shadow: 0 3px 0 #a87a14, 0 5px 10px rgba(60,30,5,.25), inset 0 1px 0 #fff; padding: 14px 18px; }
 .btn-resume b { font-size: 17px; }
 .btn-resume small { color: #5a3a08; }
 .menu-grid .btn { padding: 14px 8px; }
 .menu-grid .btn b { font-size: 16px; }
-@media (max-width: 520px) { .menu-grid { grid-template-columns: 1fr 1fr; } .menu-grid .btn small { font-size: 11px; } .menu-card { padding: 22px 16px; } }
+@media (max-width: 520px) {
+  .menu-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .menu-grid .btn { padding: 10px 6px; }
+  .menu-grid .btn small { font-size: 11px; }
+  .menu-card { padding: 18px 14px; gap: 14px; }
+  .menu-head { gap: 4px; }
+  .menu-head h1 { font-size: 40px; }
+  .menu-marbles i { width: 18px; height: 18px; }
+  .lede { font-size: 13px; }
+  .menu-block { padding: 12px; gap: 10px; }
+  .opt-label { width: auto; min-width: 3em; }
+  .seg label { padding: 7px 4px; font-size: 13px; }
+}
 
 /* ---------- ゲーム画面 ---------- */
 #game { display: flex; flex-direction: column; position: relative; overflow: hidden;
@@ -564,7 +588,7 @@ button { font: inherit; color: inherit; }
 .rp-eval.g-best::before, .rp-eval.g-only::before { content: "◎ "; color: #2f7d4a; }
 .rp-eval.g-good::before { content: "○ "; color: #2b5aa8; }
 .rp-eval.g-dubious::before { content: "△ "; color: #b7791f; }
-.rp-eval.g-bad::before { content: "✕ "; color: #b3261e; }
+.rp-eval.g-bad::before, .rp-eval.g-missWin::before, .rp-eval.g-lose::before { content: "✕ "; color: #b3261e; }
 .rp-summary { font-size: 13px !important; color: var(--ink-soft); }
 .linkish { appearance: none; border: 0; background: none; padding: 0 0 0 8px; font: inherit; font-weight: 900; color: var(--indigo); text-decoration: underline; cursor: pointer; }
 .rp-chart { margin: 6px 0 0; display: grid; gap: 4px; }
@@ -615,6 +639,7 @@ button { font: inherit; color: inherit; }
   #rp-panel .rp-chart { grid-column: 1; grid-row: auto; }
   .rp-controls .btn { min-width: 0; padding: 8px 6px; flex: 1; }
 }
+.rules-fold:not([open]) { display: block; }
 
 </style>
 </head>
@@ -655,8 +680,9 @@ button { font: inherit; color: inherit; }
         <button class="btn btn-main" id="btn-cpu" type="button">CPUと対戦をはじめる</button>
       </div>
 
-      <div class="menu-block">
-        <h2>ルール設定<small>CPU対戦・ふたりで対戦に使われます</small></h2>
+      <details class="menu-block rules-fold" id="rules-fold">
+        <summary><span class="rf-title">ルール設定</span><span class="rf-now" id="rule-note">各穴4個（合計48個）・横取りあり・標準</span><span class="rf-open" aria-hidden="true">変更</span></summary>
+        <p class="rf-help">CPU対戦とふたりで対戦に使われます。</p>
         <div class="opt-row">
           <span class="opt-label" id="lbl-seeds">石の数</span>
           <div class="seg" role="radiogroup" aria-labelledby="lbl-seeds">
@@ -673,8 +699,7 @@ button { font: inherit; color: inherit; }
             <input type="radio" name="capture" id="rc-off" value="off"><label for="rc-off">なし</label>
           </div>
         </div>
-        <p class="rule-note" id="rule-note">各穴に4個（合計48個）・横取りあり（標準ルール）</p>
-      </div>
+      </details>
 
       <div class="menu-grid">
         <button class="btn" id="btn-pvp" type="button"><b>ふたりで対戦</b><small>1台の端末で交代しながら</small></button>
@@ -1270,7 +1295,43 @@ button { font: inherit; color: inherit; }
     return chooseHard(s, o.timeMs || 600).move;
   }
 
-  const api = { chooseMove, chooseHard, evaluate, orderedMoves, scoreRoot };
+  /* ---------- 振り返り用の分析 ---------- */
+  // 盤上の石が少ない終盤ほど深く読む（読み筋が短く、計算が軽いため）
+  function analysisDepth(s) {
+    const onBoard = E.sideSum(s.pits, 0) + E.sideSum(s.pits, 1);
+    if (onBoard <= 12) return 20;
+    if (onBoard <= 20) return 14;
+    return 11;
+  }
+  function analyzePosition(s) {
+    return scoreRoot(s, analysisDepth(s));
+  }
+
+  // 1手の評価。loss は最善手との差（ゴールの石の差に換算）。
+  // 序盤は読みが不確かなので判定をゆるめる。勝ち負けが変わる手は別扱い。
+  const GRADE_TEXT = {
+    only: 'この手しかない', best: '最善手', good: 'まずまず', dubious: '疑問手', bad: '悪手',
+    missWin: '勝ちを逃す手', lose: '負けが決まる手',
+  };
+  function gradeMove(s, scored, move) {
+    const best = scored[0];
+    const mine = scored.find((x) => x.m === move) || best;
+    const loss = Math.max(0, best.v - mine.v);
+    let key;
+    if (scored.length <= 1) key = 'only';
+    else if (best.v >= WIN && mine.v < WIN) key = 'missWin';
+    else if (mine.v <= -WIN && best.v > -WIN) key = 'lose';
+    else {
+      const onBoard = E.sideSum(s.pits, 0) + E.sideSum(s.pits, 1);
+      const total = E.total(s.pits);
+      const k = onBoard > total * 0.75 ? 1.5 : 1;
+      const d = Math.abs(loss) >= WIN ? loss % WIN : loss;
+      key = d < 1 * k ? 'best' : d < 2.5 * k ? 'good' : d < 5 * k ? 'dubious' : 'bad';
+    }
+    return { key, text: GRADE_TEXT[key], loss, best: best.m };
+  }
+
+  const api = { chooseMove, chooseHard, evaluate, orderedMoves, scoreRoot, analyzePosition, gradeMove, WIN };
   root.MancalaAI = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
@@ -1642,7 +1703,7 @@ self.onmessage = function (e) {
   var d = e.data, r;
   try {
     if (d.kind === 'move') r = MancalaAI.chooseMove(d.state, d.level, { timeMs: d.timeMs });
-    else r = d.items.map(function (it) { return MancalaAI.scoreRoot(it, d.depth); });
+    else r = d.items.map(function (it) { return MancalaAI.analyzePosition(it); });
     self.postMessage({ id: d.id, r: r });
   } catch (err) { self.postMessage({ id: d.id, err: String(err) }); }
 };`;
@@ -1675,7 +1736,7 @@ self.onmessage = function (e) {
     }
     return {
       move: (state, level, timeMs) => run({ kind: 'move', state, level, timeMs }, () => AI.chooseMove(state, level, { timeMs })),
-      analyze: (items, depth) => run({ kind: 'analyze', items, depth }, () => items.map((it) => AI.scoreRoot(it, depth))),
+      analyze: (items) => run({ kind: 'analyze', items }, () => items.map((it) => AI.analyzePosition(it))),
     };
   })();
 
@@ -2601,41 +2662,32 @@ self.onmessage = function (e) {
     drawGraph();
     // 各手を深く読み、最善手との差を出す（Workerで計算）
     const id = (RP.id = (RP.id || 0) + 1);
-    brain.analyze(hist.map((h) => E.fromPits(h.pits, h.turn, G.rules)), 8).then((all) => {
+    brain.analyze(RP.states.slice(0, hist.length)).then((all) => {
       if (RP.id !== id || G.mode !== 'replay') return;
       RP.analysis = all.map((scored, k) => {
-        const mv = hist[k].move;
-        const best = scored[0];
-        const mine = scored.find((x) => x.m === mv) || best;
-        const loss = Math.max(0, best.v - mine.v);
-        return { best: best.m, loss, grade: grade(loss, scored.length) };
+        const g = AI.gradeMove(RP.states[k], scored, hist[k].move);
+        return { best: g.best, loss: g.loss, grade: { key: g.key, text: g.text } };
       });
       writeSummary();
       showReplayMove();
       drawGraph();
     });
   }
-  function grade(loss, n) {
-    if (n <= 1) return { key: 'only', text: 'この手しかない' };
-    if (loss < 0.5) return { key: 'best', text: '最善手' };
-    if (loss < 2) return { key: 'good', text: 'まずまず' };
-    if (loss < 5) return { key: 'dubious', text: '疑問手' };
-    return { key: 'bad', text: '悪手' };
-  }
+  const BAD_KEYS = ['bad', 'missWin', 'lose'];
   function writeSummary() {
     const A = RP.analysis;
     const who = G.replayOf === 'cpu' ? [0] : [0, 1];
     const parts = who.map((p) => {
       const ks = G.hist.map((h, k) => k).filter((k) => G.hist[k].turn === p);
       const best = ks.filter((k) => ['best', 'only'].includes(A[k].grade.key)).length;
-      const bad = ks.filter((k) => A[k].grade.key === 'bad').length;
+      const bad = ks.filter((k) => BAD_KEYS.includes(A[k].grade.key)).length;
       return `${RP.names[p]}：最善手 ${best} / ${ks.length}手・悪手 ${bad}回`;
     });
     let worst = -1, wl = 0;
-    A.forEach((a, k) => { if (who.includes(G.hist[k].turn) && a.loss > wl) { wl = a.loss; worst = k; } });
+    A.forEach((a, k) => { if (who.includes(G.hist[k].turn) && !['best', 'only'].includes(a.grade.key) && a.loss > wl) { wl = a.loss; worst = k; } });
     const s = $('#rp-summary');
     s.textContent = parts.join('　');
-    if (worst >= 0 && wl >= 2) {
+    if (worst >= 0 && wl >= 2.5) {
       const b = el('button', 'linkish', s);
       b.type = 'button';
       b.textContent = `いちばん差がついた手（${worst + 1}手目）を見る`;
@@ -2699,7 +2751,7 @@ self.onmessage = function (e) {
         const a = RP.analysis[k];
         ev.classList.add('g-' + a.grade.key);
         let t = `評価：${a.grade.text}`;
-        if (a.best !== h.move && a.grade.key !== 'best') {
+        if (a.best !== h.move && !['best', 'only'].includes(a.grade.key)) {
           const rb = E.applyMove(RP.states[k], a.best, false);
           const bw = rb.gameOver ? 'ゲーム終了' : rb.extraTurn ? 'もう一回' : rb.capture ? `横取り ${rb.capture.count}個` : '';
           t += `　おすすめは${pitShort(a.best)}の穴${bw ? '（' + bw + '）' : ''}`;
@@ -2727,7 +2779,7 @@ self.onmessage = function (e) {
     let marks = '';
     if (RP.analysis) {
       RP.analysis.forEach((a, k) => {
-        if (a.grade.key === 'bad') marks += `<circle cx="${x(k + 1).toFixed(1)}" cy="${y(d[k + 1]).toFixed(1)}" r="3.2" class="g-badpt"/>`;
+        if (BAD_KEYS.includes(a.grade.key)) marks += `<circle cx="${x(k + 1).toFixed(1)}" cy="${y(d[k + 1]).toFixed(1)}" r="3.2" class="g-badpt"/>`;
       });
     }
     svg.innerHTML = `
@@ -2934,7 +2986,7 @@ self.onmessage = function (e) {
     pick('rs-' + settings.seeds);
     pick(settings.capture ? 'rc-on' : 'rc-off');
     $('#rule-note').textContent = rulesText(rulesNow()).replace('各穴' + settings.seeds + '個', `各穴${settings.seeds}個（合計${settings.seeds * 12}個）`) +
-      (settings.seeds === 4 && settings.capture ? '（標準ルール）' : '');
+      (settings.seeds === 4 && settings.capture ? '・標準' : '');
   }
   document.querySelectorAll('input[name="level"]').forEach((r) => r.addEventListener('change', () => { settings.level = r.value; saveSettings(); }));
   document.querySelectorAll('input[name="order"]').forEach((r) => r.addEventListener('change', () => { settings.order = r.value; saveSettings(); }));

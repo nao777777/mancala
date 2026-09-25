@@ -45,8 +45,9 @@
         <button class="btn btn-main" id="btn-cpu" type="button">CPUと対戦をはじめる</button>
       </div>
 
-      <div class="menu-block">
-        <h2>ルール設定<small>CPU対戦・ふたりで対戦に使われます</small></h2>
+      <details class="menu-block rules-fold" id="rules-fold">
+        <summary><span class="rf-title">ルール設定</span><span class="rf-now" id="rule-note">各穴4個（合計48個）・横取りあり・標準</span><span class="rf-open" aria-hidden="true">変更</span></summary>
+        <p class="rf-help">CPU対戦とふたりで対戦に使われます。</p>
         <div class="opt-row">
           <span class="opt-label" id="lbl-seeds">石の数</span>
           <div class="seg" role="radiogroup" aria-labelledby="lbl-seeds">
@@ -63,8 +64,7 @@
             <input type="radio" name="capture" id="rc-off" value="off"><label for="rc-off">なし</label>
           </div>
         </div>
-        <p class="rule-note" id="rule-note">各穴に4個（合計48個）・横取りあり（標準ルール）</p>
-      </div>
+      </details>
 
       <div class="menu-grid">
         <button class="btn" id="btn-pvp" type="button"><b>ふたりで対戦</b><small>1台の端末で交代しながら</small></button>

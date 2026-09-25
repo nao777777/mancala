@@ -122,13 +122,37 @@ button { font: inherit; color: inherit; }
 .seg input:focus-visible + label { outline: 3px solid var(--indigo); outline-offset: 1px; }
 .menu-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .menu-block h2 small { display: block; font-size: 12px; font-weight: 500; color: var(--ink-soft); letter-spacing: 0; margin-top: 2px; }
-.rule-note { margin: 0; font-size: 13px; color: var(--ink-soft); }
+/* ルール設定（折りたたみ） */
+.rules-fold { padding-block: 12px; }
+.rules-fold summary { list-style: none; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; cursor: pointer; }
+.rules-fold summary::-webkit-details-marker { display: none; }
+.rf-title { font-size: 16px; font-weight: 900; }
+.rf-now { font-size: 13px; font-weight: 700; color: var(--ink-soft); flex: 1; min-width: 0; }
+.rf-open { font-size: 13px; font-weight: 900; color: var(--indigo); padding: 3px 10px; border-radius: 999px; box-shadow: inset 0 0 0 1.5px rgba(43,90,168,.45); }
+.rf-open::after { content: " ▾"; }
+.rules-fold[open] .rf-open { font-size: 0; }
+.rules-fold[open] .rf-open::before { content: "閉じる"; font-size: 13px; }
+.rules-fold[open] .rf-open::after { content: " ▴"; font-size: 13px; }
+.rf-help { margin: 0; font-size: 12px; color: var(--ink-soft); }
+.rules-fold[open] { display: grid; gap: 12px; }
 .btn-resume { background: linear-gradient(180deg, #ffe89a, #f5c84a); box-shadow: 0 3px 0 #a87a14, 0 5px 10px rgba(60,30,5,.25), inset 0 1px 0 #fff; padding: 14px 18px; }
 .btn-resume b { font-size: 17px; }
 .btn-resume small { color: #5a3a08; }
 .menu-grid .btn { padding: 14px 8px; }
 .menu-grid .btn b { font-size: 16px; }
-@media (max-width: 520px) { .menu-grid { grid-template-columns: 1fr 1fr; } .menu-grid .btn small { font-size: 11px; } .menu-card { padding: 22px 16px; } }
+@media (max-width: 520px) {
+  .menu-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .menu-grid .btn { padding: 10px 6px; }
+  .menu-grid .btn small { font-size: 11px; }
+  .menu-card { padding: 18px 14px; gap: 14px; }
+  .menu-head { gap: 4px; }
+  .menu-head h1 { font-size: 40px; }
+  .menu-marbles i { width: 18px; height: 18px; }
+  .lede { font-size: 13px; }
+  .menu-block { padding: 12px; gap: 10px; }
+  .opt-label { width: auto; min-width: 3em; }
+  .seg label { padding: 7px 4px; font-size: 13px; }
+}
 
 /* ---------- ゲーム画面 ---------- */
 #game { display: flex; flex-direction: column; position: relative; overflow: hidden;
@@ -547,7 +571,7 @@ button { font: inherit; color: inherit; }
 .rp-eval.g-best::before, .rp-eval.g-only::before { content: "◎ "; color: #2f7d4a; }
 .rp-eval.g-good::before { content: "○ "; color: #2b5aa8; }
 .rp-eval.g-dubious::before { content: "△ "; color: #b7791f; }
-.rp-eval.g-bad::before { content: "✕ "; color: #b3261e; }
+.rp-eval.g-bad::before, .rp-eval.g-missWin::before, .rp-eval.g-lose::before { content: "✕ "; color: #b3261e; }
 .rp-summary { font-size: 13px !important; color: var(--ink-soft); }
 .linkish { appearance: none; border: 0; background: none; padding: 0 0 0 8px; font: inherit; font-weight: 900; color: var(--indigo); text-decoration: underline; cursor: pointer; }
 .rp-chart { margin: 6px 0 0; display: grid; gap: 4px; }
@@ -598,3 +622,4 @@ button { font: inherit; color: inherit; }
   #rp-panel .rp-chart { grid-column: 1; grid-row: auto; }
   .rp-controls .btn { min-width: 0; padding: 8px 6px; flex: 1; }
 }
+.rules-fold:not([open]) { display: block; }

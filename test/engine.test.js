@@ -246,3 +246,56 @@ test('ルール設定：横取りなしでもAIは合法手を返す', () => {
     assert.ok(E.isLegal(s, m));
   }
 });
+
+test('振り返りの評価：手が1つならこの手しかない、同じ価値なら最善手', () => {
+  const s = E.fromPits([0, 0, 0, 0, 0, 3, 20, 2, 2, 2, 2, 2, 2, 13], 0);
+  const sc = AI.analyzePosition(s);
+  assert.equal(AI.gradeMove(s, sc, 5).key, 'only');
+  const s2 = E.createState();
+  const fake = [{ m: 2, v: 3 }, { m: 3, v: 3 }, { m: 0, v: 1 }];
+  assert.equal(AI.gradeMove(s2, fake, 3).key, 'best');
+});
+
+test('振り返りの評価：勝ちを逃す手・負けが決まる手を見分ける', () => {
+  const s = E.fromPits([0, 0, 0, 0, 1, 1, 20, 1, 0, 3, 1, 0, 1, 20], 0);
+  const W = AI.WIN;
+  assert.equal(AI.gradeMove(s, [{ m: 5, v: W + 2 }, { m: 4, v: 1 }], 4).key, 'missWin');
+  assert.equal(AI.gradeMove(s, [{ m: 5, v: 0.5 }, { m: 4, v: -W - 3 }], 4).key, 'lose');
+});
+
+test('振り返りの評価：序盤はゆるめ、終盤は同じ差でも厳しく', () => {
+  const early = E.createState();
+  const late = E.fromPits([1, 0, 2, 0, 1, 1, 20, 1, 2, 0, 1, 0, 1, 18], 0);
+  const sc = [{ m: 2, v: 3 }, { m: 0, v: 0.6 }];
+  assert.equal(AI.gradeMove(early, sc, 0).key, 'good');
+  assert.equal(AI.gradeMove(late, sc, 0).key, 'good');
+  const sc2 = [{ m: 2, v: 5 }, { m: 0, v: 0.5 }];
+  assert.equal(AI.gradeMove(early, sc2, 0).key, 'dubious');
+  assert.equal(AI.gradeMove(late, sc2, 0).key, 'dubious');
+  const sc3 = [{ m: 2, v: 6 }, { m: 0, v: 0.5 }];
+  assert.equal(AI.gradeMove(early, sc3, 0).key, 'dubious');
+  assert.equal(AI.gradeMove(late, sc3, 0).key, 'bad');
+});
+
+test('振り返りの評価：強いCPUほど悪手が少ない（評価の較正）', () => {
+  const rate = (level) => {
+    const rng = mulberry(5);
+    let bad = 0, n = 0;
+    for (let g = 0; g < 3; g++) {
+      let s = E.createState({ first: g % 2 });
+      while (!s.over) {
+        const m = AI.chooseMove(s, level, { rng, timeMs: 40 });
+        if (s.turn === 0) {
+          const k = AI.gradeMove(s, AI.analyzePosition(s), m).key;
+          if (k === 'bad' || k === 'missWin' || k === 'lose') bad++;
+          n++;
+        }
+        s = E.applyMove(s, m).state;
+      }
+    }
+    return bad / n;
+  };
+  const hard = rate('hard'), easy = rate('easy');
+  assert.ok(hard < 0.08, 'hard ' + hard);
+  assert.ok(easy > hard + 0.1, `easy ${easy} hard ${hard}`);
+});

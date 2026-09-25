@@ -23,9 +23,15 @@
 ## 開発
 
 ```sh
-npm test        # ルールエンジンとCPUのテスト
+npm install     # 画面テスト用の Playwright を入れる（初回のみ）
+npm test        # ルールエンジン・CPU・パズル・振り返りの評価のテスト
+npm run e2e     # ビルドしてから、実際のブラウザで画面を操作するテスト
+npm run test:all
 npm run build   # src/ を結合して docs/index.html と dist/mancala.html を作る
 ```
+
+画面テスト（`test/e2e/app.e2e.js`）は、メニュー、CPU対戦（ヒント・続きから）、ルール設定、パズル、
+ふたりで対戦から振り返り、着せ替え、設定、スマホの2回タップと横向き、チュートリアルを確かめます。
 
 | パス | 内容 |
 | --- | --- |

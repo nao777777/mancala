@@ -5,6 +5,11 @@
   "description": "木のボードとガラス玉で遊ぶマンカラ（カラハ式）",
   "scripts": {
     "build": "node build.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "e2e": "node build.js && node --test --test-concurrency=1 test/e2e/*.e2e.js",
+    "test:all": "npm test && npm run e2e"
+  },
+  "devDependencies": {
+    "playwright": "^1.56.1"
   }
 }
