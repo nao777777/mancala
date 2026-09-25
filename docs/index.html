@@ -260,6 +260,10 @@ button { font: inherit; color: inherit; }
 }
 .count.bump { animation: bump .25s ease-out; }
 @keyframes bump { 40% { transform: translate(-50%, -50%) scale(1.35); } }
+/* ふたりで対戦：奥のプレイヤーの数字は向かい側から読めるよう逆さに */
+.board.pvp .count.top { transform: translate(-50%, -50%) rotate(180deg); }
+.board.pvp .count.top.bump { animation-name: bumpflip; }
+@keyframes bumpflip { 40% { transform: translate(-50%, -50%) rotate(180deg) scale(1.35); } }
 
 /* ガイド */
 .guide {
@@ -273,6 +277,7 @@ button { font: inherit; color: inherit; }
   font-weight: 900; font-size: 1.9cqw; padding: .4cqw 1cqw; border-radius: 999px; white-space: nowrap;
   background: #fff8ea; color: var(--ink); box-shadow: 0 .3cqw .6cqw rgba(0,0,0,.35);
 }
+.guide-tag.flip { transform: translate(-50%, -100%) rotate(180deg); }
 .guide-tag.extra { background: #ffd24a; }
 .guide-tag.capture { background: #ff7aa8; color: #fff; }
 
@@ -644,7 +649,7 @@ button { font: inherit; color: inherit; }
           <li>コンクラック（インドネシア）、チョンカック（マレーシア）：2列×7穴と両はしのゴール。舟の形をした盤も多い</li>
           <li>パッランクリ（南インド）：2列×7穴。昔から家庭で遊ばれてきた</li>
         </ul>
-        <p>このゲームで使っている「カラハ」は、20世紀の半ばにアメリカで商品として売り出された遊び方です。ルールがわかりやすく、世界でいちばん広く遊ばれているマンカラになりました。1列6穴・各4個のカラハは、2000年にコンピュータで最後まで読み切られ、両者が最善を尽くすと先手が勝つことがわかっています。</p>
+        <p>このゲームで使っている「カラハ」は、20世紀の半ばにアメリカで商品として売り出された遊び方です。ルールがわかりやすく、世界でいちばん広く遊ばれているマンカラになりました。</p>
       </section>
 
       <div class="rules-actions">
@@ -1157,7 +1162,7 @@ button { font: inherit; color: inherit; }
       }
       p.style.left = L(c.x); p.style.top = T(c.y);
       pitEls[i] = p;
-      const ct = el('div', 'count', board);
+      const ct = el('div', i >= 7 ? 'count top' : 'count', board);
       const cp = countPos(i);
       ct.style.left = L(cp.x); ct.style.top = T(cp.y);
       countEls[i] = ct;
@@ -1449,7 +1454,8 @@ button { font: inherit; color: inherit; }
     else if (r.extraTurn) { text = 'もう一回！'; cls = 'extra'; }
     else if (r.capture) { text = `横取り ${r.capture.count}個`; cls = 'capture'; }
     guideTag.textContent = text;
-    guideTag.className = 'guide-tag ' + cls;
+    // ふたりで対戦では、奥のプレイヤーの番のラベルも相手向きに回す
+    guideTag.className = 'guide-tag ' + cls + (G.mode === 'pvp' && G.state.turn === 1 ? ' flip' : '');
     const top = c.y - (isStore(land) ? STORE_H : PIT_H) / 2 - 6;
     guideTag.style.left = L(c.x);
     guideTag.style.top = T(Math.max(top, 40));
@@ -1583,6 +1589,7 @@ button { font: inherit; color: inherit; }
   }
 
   function resetTable() {
+    board.classList.remove('pvp');
     token++;
     $('#result').hidden = true;
     bannerEl.className = 'banner';
@@ -1607,6 +1614,7 @@ button { font: inherit; color: inherit; }
   function startPVP() {
     resetTable();
     G.mode = 'pvp';
+    board.classList.add('pvp');
     G.players = [{ type: 'human', name: 'プレイヤー1' }, { type: 'human', name: 'プレイヤー2' }];
     setSeats('プレイヤー1', 'プレイヤー2', 'me', 'p2');
     G.state = E.createState({ first: 0 });

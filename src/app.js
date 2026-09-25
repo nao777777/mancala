@@ -222,7 +222,7 @@
       }
       p.style.left = L(c.x); p.style.top = T(c.y);
       pitEls[i] = p;
-      const ct = el('div', 'count', board);
+      const ct = el('div', i >= 7 ? 'count top' : 'count', board);
       const cp = countPos(i);
       ct.style.left = L(cp.x); ct.style.top = T(cp.y);
       countEls[i] = ct;
@@ -514,7 +514,8 @@
     else if (r.extraTurn) { text = 'もう一回！'; cls = 'extra'; }
     else if (r.capture) { text = `横取り ${r.capture.count}個`; cls = 'capture'; }
     guideTag.textContent = text;
-    guideTag.className = 'guide-tag ' + cls;
+    // ふたりで対戦では、奥のプレイヤーの番のラベルも相手向きに回す
+    guideTag.className = 'guide-tag ' + cls + (G.mode === 'pvp' && G.state.turn === 1 ? ' flip' : '');
     const top = c.y - (isStore(land) ? STORE_H : PIT_H) / 2 - 6;
     guideTag.style.left = L(c.x);
     guideTag.style.top = T(Math.max(top, 40));
@@ -648,6 +649,7 @@
   }
 
   function resetTable() {
+    board.classList.remove('pvp');
     token++;
     $('#result').hidden = true;
     bannerEl.className = 'banner';
@@ -672,6 +674,7 @@
   function startPVP() {
     resetTable();
     G.mode = 'pvp';
+    board.classList.add('pvp');
     G.players = [{ type: 'human', name: 'プレイヤー1' }, { type: 'human', name: 'プレイヤー2' }];
     setSeats('プレイヤー1', 'プレイヤー2', 'me', 'p2');
     G.state = E.createState({ first: 0 });

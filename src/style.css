@@ -243,6 +243,10 @@ button { font: inherit; color: inherit; }
 }
 .count.bump { animation: bump .25s ease-out; }
 @keyframes bump { 40% { transform: translate(-50%, -50%) scale(1.35); } }
+/* ふたりで対戦：奥のプレイヤーの数字は向かい側から読めるよう逆さに */
+.board.pvp .count.top { transform: translate(-50%, -50%) rotate(180deg); }
+.board.pvp .count.top.bump { animation-name: bumpflip; }
+@keyframes bumpflip { 40% { transform: translate(-50%, -50%) rotate(180deg) scale(1.35); } }
 
 /* ガイド */
 .guide {
@@ -256,6 +260,7 @@ button { font: inherit; color: inherit; }
   font-weight: 900; font-size: 1.9cqw; padding: .4cqw 1cqw; border-radius: 999px; white-space: nowrap;
   background: #fff8ea; color: var(--ink); box-shadow: 0 .3cqw .6cqw rgba(0,0,0,.35);
 }
+.guide-tag.flip { transform: translate(-50%, -100%) rotate(180deg); }
 .guide-tag.extra { background: #ffd24a; }
 .guide-tag.capture { background: #ff7aa8; color: #fff; }
 
